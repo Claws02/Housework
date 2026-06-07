@@ -22,25 +22,38 @@
   <!-- ── Toolbar ── -->
   <header id="toolbar">
     <div class="tb-left">
-      <!-- Mode toggle -->
+
+      <!-- Mode -->
       <div class="mode-btns">
-        <button id="btn-mode-2d" class="active">2D Plan</button>
-        <button id="btn-mode-3d">3D View</button>
+        <button id="btn-mode-2d" class="active" title="2D floor plan">2D Plan</button>
+        <button id="btn-mode-3d" title="3D walkthrough">3D View</button>
       </div>
 
-      <!-- 2D tools -->
+      <!-- Draw tools -->
       <div class="tb-group" id="tools-2d">
-        <button class="tb-btn active" id="btn-select" title="Select & Move (V)">↖</button>
-        <button class="tb-btn" id="btn-wall" title="Draw Wall (W)">▭</button>
-        <button class="tb-btn" id="btn-eraser" title="Erase (E)">✕</button>
+        <button class="tb-btn active" id="btn-room"   title="Draw Room — drag to create (R)">⬜</button>
+        <button class="tb-btn"        id="btn-wall"   title="Draw Wall — click-click (W)">▭</button>
+        <button class="tb-btn"        id="btn-select" title="Select &amp; Move (V)">↖</button>
+        <button class="tb-btn"        id="btn-eraser" title="Erase (E)">✕</button>
       </div>
+
+      <div class="tb-sep"></div>
+
+      <!-- Undo/Redo -->
+      <div class="tb-group">
+        <button class="tb-btn" id="btn-undo" title="Undo (Ctrl+Z)" disabled>↩</button>
+        <button class="tb-btn" id="btn-redo" title="Redo (Ctrl+Y)" disabled>↪</button>
+      </div>
+
+      <div class="tb-sep"></div>
 
       <!-- File ops -->
       <div class="tb-group">
-        <button class="tb-btn" id="btn-save" title="Download JSON">💾</button>
-        <button class="tb-btn" id="btn-load" title="Load JSON">📂</button>
-        <button class="tb-btn" id="btn-clear" title="Clear all">🗑</button>
+        <button class="tb-btn" id="btn-save"   title="Download layout">💾</button>
+        <button class="tb-btn" id="btn-load"   title="Load layout">📂</button>
+        <button class="tb-btn" id="btn-clear"  title="Clear all">🗑</button>
         <button class="tb-btn" id="btn-export" title="Save as PNG">📷</button>
+        <button class="tb-btn" id="btn-sound"  title="Toggle sound">🔊</button>
       </div>
     </div>
 
@@ -50,10 +63,10 @@
   <!-- ── Main ── -->
   <div id="main">
 
-    <!-- Sidebar -->
+    <!-- Furniture shop sidebar -->
     <aside id="sidebar">
       <div id="sb-toggle-row">
-        <button id="btn-sidebar-toggle" title="Toggle sidebar">☰</button>
+        <button id="btn-sidebar-toggle" title="Toggle furniture panel">☰</button>
       </div>
       <div class="pal-search">
         <input type="text" id="palette-search" placeholder="Search furniture…">
@@ -61,21 +74,38 @@
       <div id="furniture-palette"></div>
     </aside>
 
-    <!-- Canvas / 3D -->
+    <!-- Canvas / 3D view -->
     <div id="canvas-container">
       <canvas id="canvas-2d"></canvas>
       <div id="view-3d"></div>
+
+      <!-- Budget HUD (2D only) -->
+      <div id="budget-hud">
+        <div class="budget-row">
+          <span class="budget-label">Budget</span>
+          <span class="budget-nums">
+            <span id="budget-spent">$0</span>
+            <span class="budget-sep">/</span>
+            <span class="budget-total">$10,000</span>
+          </span>
+        </div>
+        <div class="budget-track"><div id="budget-fill"></div></div>
+        <div id="budget-remaining">$10,000 left</div>
+      </div>
     </div>
 
   </div>
 
   <!-- ── Status bar ── -->
   <footer id="statusbar">
-    <span id="status-text">Select tool: click furniture to select, drag to move.</span>
+    <span id="status-text">Draw Room: drag on the canvas to create a room</span>
     <span id="zoom-label">20 px/ft</span>
   </footer>
 
 </div>
+
+<!-- Toast container -->
+<div id="toast-wrap"></div>
 
 <!-- Hidden file input -->
 <input type="file" id="file-input" accept=".json" style="display:none">
