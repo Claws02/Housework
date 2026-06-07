@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Apartment Designer</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Toolbar ── -->
+  <header id="toolbar">
+    <div class="tb-left">
+      <!-- Mode toggle -->
+      <div class="mode-btns">
+        <button id="btn-mode-2d" class="active">2D Plan</button>
+        <button id="btn-mode-3d">3D View</button>
+      </div>
+
+      <!-- 2D tools -->
+      <div class="tb-group" id="tools-2d">
+        <button class="tb-btn active" id="btn-select" title="Select & Move (V)">↖</button>
+        <button class="tb-btn" id="btn-wall" title="Draw Wall (W)">▭</button>
+        <button class="tb-btn" id="btn-eraser" title="Erase (E)">✕</button>
+      </div>
+
+      <!-- File ops -->
+      <div class="tb-group">
+        <button class="tb-btn" id="btn-save" title="Download JSON">💾</button>
+        <button class="tb-btn" id="btn-load" title="Load JSON">📂</button>
+        <button class="tb-btn" id="btn-clear" title="Clear all">🗑</button>
+        <button class="tb-btn" id="btn-export" title="Save as PNG">📷</button>
+      </div>
+    </div>
+
+    <h1>Apartment Designer</h1>
+  </header>
+
+  <!-- ── Main ── -->
+  <div id="main">
+
+    <!-- Sidebar -->
+    <aside id="sidebar">
+      <div id="sb-toggle-row">
+        <button id="btn-sidebar-toggle" title="Toggle sidebar">☰</button>
+      </div>
+      <div class="pal-search">
+        <input type="text" id="palette-search" placeholder="Search furniture…">
+      </div>
+      <div id="furniture-palette"></div>
+    </aside>
+
+    <!-- Canvas / 3D -->
+    <div id="canvas-container">
+      <canvas id="canvas-2d"></canvas>
+      <div id="view-3d"></div>
+    </div>
+
+  </div>
+
+  <!-- ── Status bar ── -->
+  <footer id="statusbar">
+    <span id="status-text">Select tool: click furniture to select, drag to move.</span>
+    <span id="zoom-label">20 px/ft</span>
+  </footer>
+
+</div>
+
+<!-- Hidden file input -->
+<input type="file" id="file-input" accept=".json" style="display:none">
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
