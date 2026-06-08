@@ -22,32 +22,22 @@
   <!-- ── Toolbar ── -->
   <header id="toolbar">
     <div class="tb-left">
-
-      <!-- Mode -->
       <div class="mode-btns">
         <button id="btn-mode-2d" class="active" title="2D floor plan">2D Plan</button>
         <button id="btn-mode-3d" title="3D walkthrough">3D View</button>
       </div>
-
-      <!-- Draw tools -->
       <div class="tb-group" id="tools-2d">
         <button class="tb-btn active" id="btn-room"   title="Draw Room — drag to create (R)">⬜</button>
         <button class="tb-btn"        id="btn-wall"   title="Draw Wall — click-click (W)">▭</button>
         <button class="tb-btn"        id="btn-select" title="Select &amp; Move (V)">↖</button>
         <button class="tb-btn"        id="btn-eraser" title="Erase (E)">✕</button>
       </div>
-
       <div class="tb-sep"></div>
-
-      <!-- Undo/Redo -->
       <div class="tb-group">
         <button class="tb-btn" id="btn-undo" title="Undo (Ctrl+Z)" disabled>↩</button>
         <button class="tb-btn" id="btn-redo" title="Redo (Ctrl+Y)" disabled>↪</button>
       </div>
-
       <div class="tb-sep"></div>
-
-      <!-- File ops -->
       <div class="tb-group">
         <button class="tb-btn" id="btn-save"   title="Download layout">💾</button>
         <button class="tb-btn" id="btn-load"   title="Load layout">📂</button>
@@ -56,14 +46,13 @@
         <button class="tb-btn" id="btn-sound"  title="Toggle sound">🔊</button>
       </div>
     </div>
-
     <h1>Apartment Designer</h1>
   </header>
 
   <!-- ── Main ── -->
   <div id="main">
 
-    <!-- Furniture shop sidebar -->
+    <!-- Left: Furniture palette -->
     <aside id="sidebar">
       <div id="sb-toggle-row">
         <button id="btn-sidebar-toggle" title="Toggle furniture panel">☰</button>
@@ -74,12 +63,12 @@
       <div id="furniture-palette"></div>
     </aside>
 
-    <!-- Canvas / 3D view -->
+    <!-- Centre: Canvas / 3D view -->
     <div id="canvas-container">
       <canvas id="canvas-2d"></canvas>
       <div id="view-3d"></div>
 
-      <!-- Budget HUD (2D only) -->
+      <!-- Budget HUD -->
       <div id="budget-hud">
         <div class="budget-row">
           <span class="budget-label">Budget</span>
@@ -92,7 +81,103 @@
         <div class="budget-track"><div id="budget-fill"></div></div>
         <div id="budget-remaining">$10,000 left</div>
       </div>
+
+      <!-- Zoom controls -->
+      <div id="zoom-controls">
+        <button id="btn-zoom-in"  title="Zoom in (+)">+</button>
+        <button id="btn-zoom-out" title="Zoom out (−)">−</button>
+        <button id="btn-zoom-fit" title="Fit to screen (F)">⊹</button>
+      </div>
+
+      <!-- Empty-state hint -->
+      <div id="canvas-hint">
+        <div class="ch-icon">🏠</div>
+        <div class="ch-text">Select <strong>Draw Room</strong> and drag to start</div>
+        <div class="ch-sub">or pick a furniture item from the left panel</div>
+      </div>
     </div>
+
+    <!-- Right: Properties panel -->
+    <aside id="props-panel">
+      <div id="pp-header">Properties</div>
+
+      <!-- Nothing selected -->
+      <div id="props-empty-state">
+        <div class="pe-icon">↖</div>
+        <div class="pe-text">Select a room or furniture item to edit its properties</div>
+      </div>
+
+      <!-- Room props -->
+      <div id="props-room" style="display:none">
+        <div class="pp-section">
+          <div class="pp-label">Room Name</div>
+          <input class="pp-input" id="pp-room-name" type="text" placeholder="Room name">
+        </div>
+        <div class="pp-section">
+          <div class="pp-label">Color</div>
+          <div class="pp-swatches" id="pp-room-colors"></div>
+        </div>
+        <div class="pp-row">
+          <div class="pp-field">
+            <div class="pp-label">Width (ft)</div>
+            <input class="pp-input pp-num" id="pp-room-w" type="number" min="2" step="0.5">
+          </div>
+          <div class="pp-field">
+            <div class="pp-label">Depth (ft)</div>
+            <input class="pp-input pp-num" id="pp-room-h" type="number" min="2" step="0.5">
+          </div>
+        </div>
+        <div class="pp-section">
+          <div class="pp-label">Area</div>
+          <div class="pp-value" id="pp-room-area">—</div>
+        </div>
+        <div class="pp-section">
+          <button class="pp-btn pp-btn-danger" id="pp-room-delete">🗑 Delete Room</button>
+        </div>
+      </div>
+
+      <!-- Furniture props -->
+      <div id="props-furn" style="display:none">
+        <div class="pp-furn-hdr">
+          <span class="pp-furn-icon" id="pp-furn-icon">📦</span>
+          <span class="pp-furn-type" id="pp-furn-type">Item</span>
+        </div>
+        <div class="pp-section">
+          <div class="pp-label">Label</div>
+          <input class="pp-input" id="pp-furn-label" type="text" placeholder="Custom label">
+        </div>
+        <div class="pp-row">
+          <div class="pp-field">
+            <div class="pp-label">Width (ft)</div>
+            <input class="pp-input pp-num" id="pp-furn-w" type="number" min="0.5" step="0.5">
+          </div>
+          <div class="pp-field">
+            <div class="pp-label">Depth (ft)</div>
+            <input class="pp-input pp-num" id="pp-furn-d" type="number" min="0.5" step="0.5">
+          </div>
+        </div>
+        <div class="pp-section">
+          <div class="pp-label">Rotation</div>
+          <div class="pp-rot-row">
+            <input type="range" id="pp-furn-rot" min="-180" max="180" step="5" value="0">
+            <span class="pp-rot-val" id="pp-furn-rot-val">0°</span>
+          </div>
+        </div>
+        <div class="pp-section">
+          <div class="pp-label">Color</div>
+          <div class="pp-swatches" id="pp-furn-colors"></div>
+        </div>
+        <div class="pp-section">
+          <div class="pp-label">Price</div>
+          <div class="pp-value pp-price" id="pp-furn-price">—</div>
+        </div>
+        <div class="pp-section pp-actions">
+          <button class="pp-btn" id="pp-furn-dup">⧉ Duplicate</button>
+          <button class="pp-btn pp-btn-danger" id="pp-furn-delete">🗑 Delete</button>
+        </div>
+        <div class="pp-hint">Arrow keys nudge · Del removes</div>
+      </div>
+    </aside>
 
   </div>
 
@@ -104,12 +189,8 @@
 
 </div>
 
-<!-- Toast container -->
 <div id="toast-wrap"></div>
-
-<!-- Hidden file input -->
 <input type="file" id="file-input" accept=".json" style="display:none">
-
 <script type="module" src="app.js"></script>
 </body>
 </html>

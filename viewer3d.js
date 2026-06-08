@@ -15,11 +15,43 @@ function lighten(hex, factor) {
   return (r<<16)|(g<<8)|b;
 }
 
+function makeWoodTexture() {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 512;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#c8966e';
+  ctx.fillRect(0, 0, 512, 512);
+  const plankH = 64;
+  for (let row = 0; row < 8; row++) {
+    const y = row * plankH;
+    ctx.fillStyle = row % 2 === 0 ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.04)';
+    ctx.fillRect(0, y, 512, plankH);
+    // grain lines
+    for (let g = 2; g < plankH - 2; g += 5) {
+      ctx.beginPath();
+      ctx.strokeStyle = `rgba(0,0,0,${0.04 + Math.random() * 0.05})`;
+      ctx.lineWidth = 0.8;
+      ctx.moveTo(0, y + g);
+      const cp1x = 128, cp1y = y + g + (Math.random() - 0.5) * 4;
+      const cp2x = 384, cp2y = y + g + (Math.random() - 0.5) * 4;
+      ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, 512, y + g + (Math.random() - 0.5) * 3);
+      ctx.stroke();
+    }
+    // plank gap
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(0, y, 512, 1.5);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
 export class Viewer3D {
   constructor(container, state) {
     this.container = container;
     this.state = state;
     this._objects = [];
+    this._woodTex = makeWoodTexture();
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x111827);
@@ -72,7 +104,7 @@ export class Viewer3D {
     grid.position.y = -0.01;
     this.scene.add(grid);
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(300,300),
+      new THREE.PlaneGeometry(300, 300),
       new THREE.MeshLambertMaterial({ color: 0x111827 })
     );
     floor.rotation.x = -Math.PI/2; floor.receiveShadow = true;
@@ -82,28 +114,28 @@ export class Viewer3D {
   buildScene() {
     for (const o of this._objects) this.scene.remove(o);
     this._objects = [];
-
     for (const room of (this.state.rooms || [])) this._addRoom(room);
-    for (const w of this.state.walls)      this._addWall(w);
-    for (const f of this.state.furniture)  this._addFurniture(f);
+    for (const w of this.state.walls)     this._addWall(w);
+    for (const f of this.state.furniture) this._addFurniture(f);
   }
 
   _addRoom(room) {
-    // Floor fill
-    const floorMat = new THREE.MeshLambertMaterial({ color: lighten(room.color, 0.45), side: THREE.FrontSide });
+    const tex = this._woodTex.clone();
+    tex.needsUpdate = true;
+    tex.repeat.set(room.width / 5, room.height / 5);
+    const floorMat = new THREE.MeshLambertMaterial({ map: tex, color: lighten(room.color, 0.55) });
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(room.width, room.height), floorMat);
     floor.rotation.x = -Math.PI/2;
     floor.position.set(room.x + room.width/2, 0.006, room.y + room.height/2);
     floor.receiveShadow = true;
     this._add(floor);
 
-    // Perimeter walls
     const wallMat = new THREE.MeshLambertMaterial({ color: 0xCBD5E0 });
     const sides = [
-      { w: room.width, x: room.x+room.width/2, z: room.y,              ry: 0          },
-      { w: room.width, x: room.x+room.width/2, z: room.y+room.height,  ry: 0          },
-      { w: room.height,x: room.x,              z: room.y+room.height/2, ry: Math.PI/2  },
-      { w: room.height,x: room.x+room.width,   z: room.y+room.height/2, ry: Math.PI/2  },
+      { w:room.width,  x:room.x+room.width/2,  z:room.y,               ry:0         },
+      { w:room.width,  x:room.x+room.width/2,  z:room.y+room.height,   ry:0         },
+      { w:room.height, x:room.x,               z:room.y+room.height/2, ry:Math.PI/2 },
+      { w:room.height, x:room.x+room.width,    z:room.y+room.height/2, ry:Math.PI/2 },
     ];
     for (const s of sides) {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(s.w, WALL_H, WALL_T), wallMat);
@@ -140,7 +172,7 @@ export class Viewer3D {
     mesh.castShadow = true; mesh.receiveShadow = true;
     mesh.add(new THREE.LineSegments(
       new THREE.EdgesGeometry(mesh.geometry),
-      new THREE.LineBasicMaterial({ color: 0xffffff, transparent:true, opacity:0.12 })
+      new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12 })
     ));
     this._add(mesh);
   }
@@ -163,22 +195,22 @@ export class Viewer3D {
   refresh() { this.buildScene(); }
 
   focusOnLayout() {
-    let minX=Infinity, maxX=-Infinity, minZ=Infinity, maxZ=-Infinity;
+    let mnX=Infinity, mxX=-Infinity, mnZ=Infinity, mxZ=-Infinity;
     for (const r of (this.state.rooms||[])) {
-      minX=Math.min(minX,r.x); maxX=Math.max(maxX,r.x+r.width);
-      minZ=Math.min(minZ,r.y); maxZ=Math.max(maxZ,r.y+r.height);
+      mnX=Math.min(mnX,r.x); mxX=Math.max(mxX,r.x+r.width);
+      mnZ=Math.min(mnZ,r.y); mxZ=Math.max(mxZ,r.y+r.height);
     }
     for (const w of this.state.walls) {
-      minX=Math.min(minX,w.x1,w.x2); maxX=Math.max(maxX,w.x1,w.x2);
-      minZ=Math.min(minZ,w.y1,w.y2); maxZ=Math.max(maxZ,w.y1,w.y2);
+      mnX=Math.min(mnX,w.x1,w.x2); mxX=Math.max(mxX,w.x1,w.x2);
+      mnZ=Math.min(mnZ,w.y1,w.y2); mxZ=Math.max(mxZ,w.y1,w.y2);
     }
     for (const f of this.state.furniture) {
-      minX=Math.min(minX,f.x-f.width/2); maxX=Math.max(maxX,f.x+f.width/2);
-      minZ=Math.min(minZ,f.y-f.depth/2); maxZ=Math.max(maxZ,f.y+f.depth/2);
+      mnX=Math.min(mnX,f.x-f.width/2); mxX=Math.max(mxX,f.x+f.width/2);
+      mnZ=Math.min(mnZ,f.y-f.depth/2); mxZ=Math.max(mxZ,f.y+f.depth/2);
     }
-    if (!isFinite(minX)) return;
-    const cx=(minX+maxX)/2, cz=(minZ+maxZ)/2;
-    const span=Math.max(maxX-minX, maxZ-minZ, 10);
+    if (!isFinite(mnX)) return;
+    const cx=(mnX+mxX)/2, cz=(mnZ+mxZ)/2;
+    const span = Math.max(mxX-mnX, mxZ-mnZ, 10);
     this.camera.position.set(cx+span*.6, span*.7, cz+span*.9);
     this.controls.target.set(cx, 0, cz);
     this.controls.update();
