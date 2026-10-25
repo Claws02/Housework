@@ -1,4 +1,7 @@
-import { FURNITURE_CATALOG } from './furniture.js';
+import { FURNITURE_CATALOG, CATALOG_BY_TYPE } from './furniture.js';
+
+const kindOf = id => !id ? null : id[0] === 'r' ? 'room' : id[0] === 'w' ? 'wall' : id[0] === 'g' ? 'roof' : 'item';
+const layerOf = it => CATALOG_BY_TYPE[it.type]?.layer ?? 1;
 
 const SNAP_FT  = 0.5;
 const SNAP_ALN = 0.25;
@@ -112,6 +115,11 @@ export class Editor2D {
   }
 
   _contentBounds() {
+    // Prefer the building (walls + indoor rooms); fall back to everything.
+    let bx=Infinity, Bx=-Infinity, by=Infinity, By=-Infinity;
+    for (const w of this.state.walls) { bx=Math.min(bx,w.x1,w.x2); Bx=Math.max(Bx,w.x1,w.x2); by=Math.min(by,w.y1,w.y2); By=Math.max(By,w.y1,w.y2); }
+    for (const r of this.state.rooms) if (!r.outdoor) { bx=Math.min(bx,r.x); Bx=Math.max(Bx,r.x+r.width); by=Math.min(by,r.y); By=Math.max(By,r.y+r.height); }
+    if (isFinite(bx) && Bx-bx > 4) return { minX:bx-4, maxX:Bx+4, minY:by-4, maxY:By+4 };
     let mnX=Infinity, mxX=-Infinity, mnY=Infinity, mxY=-Infinity;
     for (const r of this.state.rooms) {
       mnX=Math.min(mnX,r.x); mxX=Math.max(mxX,r.x+r.width);
@@ -306,7 +314,7 @@ export class Editor2D {
 
     if (tool === 'select') {
       // Rotation handle on selected furniture
-      if (this.state.selectedId && this.state.selectedId[0] !== 'r') {
+      if (kindOf(this.state.selectedId) === 'item') {
         const sel = this.state.furniture.find(f => f.id === this.state.selectedId);
         if (sel) {
           const rh = this._rotHS(sel);
@@ -318,7 +326,23 @@ export class Editor2D {
         }
       }
       // Resize handles on selected room
-      if (this.state.selectedId && this.state.selectedId[0] === 'r') {
+      // Endpoint handles on selected wall
+      if (kindOf(this.state.selectedId) === 'wall') {
+        const wl = this.state.walls.find(q => q.id === this.state.selectedId);
+        if (wl) for (const end of [1, 2]) {
+          const p = this.w2s(wl[`x${end}`], wl[`y${end}`]);
+          if (Math.hypot(sx - p.x, sy - p.y) < 11) {
+            const ox = wl[`x${end}`], oy = wl[`y${end}`];
+            // drag every wall end that shares this corner
+            const joined = [];
+            for (const q of this.state.walls) for (const e of [1, 2])
+              if (Math.hypot(q[`x${e}`] - ox, q[`y${e}`] - oy) < 0.05) joined.push([q, e]);
+            this.wallDrag = { mode: 'end', joined, moved: false };
+            return;
+          }
+        }
+      }
+      if (kindOf(this.state.selectedId) === 'room') {
         const room = this.state.rooms.find(r => r.id === this.state.selectedId);
         if (room) {
           for (const h of this._roomHandles(room)) {
@@ -336,6 +360,12 @@ export class Editor2D {
         this.dragging = { id:hitF.id, ox:w.x-hitF.x, oy:w.y-hitF.y };
         this.cb.onSelect(); this.render(); return;
       }
+      const hitW = this._hitW(w.x, w.y);
+      if (hitW) {
+        this.state.selectedId = hitW.id;
+        this.wallDrag = { mode: 'move', wall: hitW, start: { x: w.x, y: w.y }, orig: { ...hitW }, moved: false };
+        this.cb.onSelect(); this.render(); return;
+      }
       const hitR = this._hitR(w.x, w.y);
       if (hitR) {
         this.state.selectedId = hitR.id;
@@ -350,7 +380,9 @@ export class Editor2D {
       const cat = FURNITURE_CATALOG.find(f => f.type === this.state.pendingAdd);
       if (cat) {
         const id = `f${Date.now()}${Math.random().toString(36).slice(2,5)}`;
-        this.state.furniture.push({ id, type:cat.type, label:cat.label, x:sn.x, y:sn.y, width:cat.width, depth:cat.depth, rotation:0, color:cat.color });
+        const it = { id, type:cat.type, label:cat.label, x:sn.x, y:sn.y, width:cat.width, depth:cat.depth, rotation:0, color:cat.color };
+        if (cat.opening) this._snapToWall(it);
+        this.state.furniture.push(it);
         this.state.selectedId = id;
         this.state.tool = 'select'; this.state.pendingAdd = null;
         this._anim.set(id, { t0:performance.now(), dur:380 });
@@ -402,12 +434,25 @@ export class Editor2D {
       this.render(); return;
     }
 
+    if (this.wallDrag) {
+      const sn = this.snap(this.mouseW.x, this.mouseW.y);
+      const wd = this.wallDrag;
+      if (wd.mode === 'end') for (const [q, e] of wd.joined) { q[`x${e}`] = sn.x; q[`y${e}`] = sn.y; }
+      else {
+        const s0 = this.snap(wd.start.x, wd.start.y), dx = sn.x - s0.x, dy = sn.y - s0.y;
+        Object.assign(wd.wall, { x1: wd.orig.x1 + dx, y1: wd.orig.y1 + dy, x2: wd.orig.x2 + dx, y2: wd.orig.y2 + dy });
+      }
+      wd.moved = true;
+      this.render(); return;
+    }
+
     if (this.dragging) {
       const it = this.state.furniture.find(f => f.id === this.dragging.id);
       if (it) {
         const sn = this.snap(this.mouseW.x-this.dragging.ox, this.mouseW.y-this.dragging.oy);
         it.x = sn.x; it.y = sn.y;
-        this._calcSnapGuides(it);
+        if (CATALOG_BY_TYPE[it.type]?.opening) this._snapToWall(it);
+        else this._calcSnapGuides(it);
       }
       this.render(); return;
     }
@@ -438,13 +483,14 @@ export class Editor2D {
       if (rw >= 2 && rh >= 2) {
         const color = ROOM_COLORS[this.state.rooms.length % ROOM_COLORS.length];
         const id = `r${Date.now()}`;
-        this.state.rooms.push({ id, x, y, width:rw, height:rh, color, name:`Room ${this.state.rooms.length+1}` });
+        this.state.rooms.push({ id, x, y, width:rw, height:rh, color, name:`Room ${this.state.rooms.length+1}`, floorMat:'oak', wallColor:'#ecebe6', autoWalls:true });
         this.state.selectedId = id;
         this.cb.onRoom(); this.cb.onUpdate();
       }
       this.roomDrag=null; this._roomPrev=null;
       this.render(); return;
     }
+    if (this.wallDrag)    { const m = this.wallDrag.moved; this.wallDrag = null; if (m) this.cb.onUpdate(); }
     if (this.panning)     this._endPan();
     if (this.resizingRoom){ this.resizingRoom=null; this.cb.onUpdate(); }
     if (this.dragging)    { this._snapGuides=[]; this.dragging=null; this.cb.onUpdate(); }
@@ -455,15 +501,21 @@ export class Editor2D {
   _keydown(e) {
     if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
     const ctrl = e.ctrlKey || e.metaKey;
+    const in3d = this.state.mode === '3d';
+    if (in3d && !['Delete','Backspace','Escape','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) return;
+    if (in3d && this.state.view3d?.walk && e.key.startsWith('Arrow')) return;
 
     if (e.key === 'Escape') {
       this.wallStart=null; this.roomDrag=null; this._roomPrev=null;
       this.state.selectedId=null; this.state.pendingAdd=null;
       this.cb.onToolChange('select');
     } else if ((e.key==='Delete'||e.key==='Backspace') && this.state.selectedId) {
-      const isRoom = this.state.selectedId[0]==='r';
-      if (isRoom) this.state.rooms = this.state.rooms.filter(r=>r.id!==this.state.selectedId);
-      else { this.state.furniture = this.state.furniture.filter(f=>f.id!==this.state.selectedId); this.cb.onRemove(); }
+      const k = kindOf(this.state.selectedId), id = this.state.selectedId;
+      if (k === 'room') this.state.rooms = this.state.rooms.filter(r=>r.id!==id);
+      else if (k === 'wall') this.state.walls = this.state.walls.filter(w=>w.id!==id);
+      else if (k === 'roof') this.state.site.roofs = this.state.site.roofs.filter(r=>r.id!==id);
+      else this.state.furniture = this.state.furniture.filter(f=>f.id!==id);
+      this.cb.onRemove();
       this.state.selectedId=null; this.cb.onUpdate();
     } else if (!ctrl && e.key==='r') { this.cb.onToolChange('room');   }
     else if   (!ctrl && e.key==='w') { this.cb.onToolChange('wall');   }
@@ -477,11 +529,14 @@ export class Editor2D {
       const d = arrows[e.key];
       if (d) {
         e.preventDefault();
-        const isRoom = this.state.selectedId[0]==='r';
-        if (isRoom) {
+        const k = kindOf(this.state.selectedId);
+        if (k === 'room') {
           const r = this.state.rooms.find(r=>r.id===this.state.selectedId);
           if (r) { r.x+=d[0]; r.y+=d[1]; this.cb.onUpdate(); }
-        } else {
+        } else if (k === 'wall') {
+          const w = this.state.walls.find(w=>w.id===this.state.selectedId);
+          if (w) { w.x1+=d[0]; w.x2+=d[0]; w.y1+=d[1]; w.y2+=d[1]; this.cb.onUpdate(); }
+        } else if (k === 'item') {
           const f = this.state.furniture.find(f=>f.id===this.state.selectedId);
           if (f) { f.x+=d[0]; f.y+=d[1]; this.cb.onUpdate(); }
         }
@@ -491,15 +546,39 @@ export class Editor2D {
   }
 
   // ── Hit tests ─────────────────────────────────────────────────────────────
+  _sorted() { return [...this.state.furniture].sort((a, b) => layerOf(a) - layerOf(b)); }
   _hitF(wx, wy) {
-    for (let i=this.state.furniture.length-1; i>=0; i--) {
-      const it = this.state.furniture[i];
+    const list = this._sorted();
+    for (let i=list.length-1; i>=0; i--) {
+      const it = list[i];
       const dx=wx-it.x, dy=wy-it.y;
       const c=Math.cos(-it.rotation), s=Math.sin(-it.rotation);
       const lx=dx*c-dy*s, ly=dx*s+dy*c;
-      if (Math.abs(lx)<=it.width/2 && Math.abs(ly)<=it.depth/2) return it;
+      const cat = CATALOG_BY_TYPE[it.type];
+      let hw = it.width/2, hd = it.depth/2;
+      if (cat?.model === 'tree' || cat?.model === 'pine') { hw *= 0.35; hd *= 0.35; }
+      if (Math.abs(lx)>hw || Math.abs(ly)>hd) continue;
+      // ceiling-wide items (joists) only grab on their outline so they don't block the room below
+      if (cat?.mount === 'ceiling' && it.width > 6 && Math.abs(lx) < hw-0.6 && Math.abs(ly) < hd-0.6) continue;
+      return it;
     }
     return null;
+  }
+
+  /** Snap a door/window onto the nearest wall and align it. */
+  _snapToWall(it) {
+    let best = null, bd = 1.5;
+    for (const w of this.state.walls) {
+      const dx=w.x2-w.x1, dy=w.y2-w.y1, len2=dx*dx+dy*dy;
+      if (!len2) continue;
+      const t=Math.max(0,Math.min(1,((it.x-w.x1)*dx+(it.y-w.y1)*dy)/len2));
+      const px=w.x1+t*dx, py=w.y1+t*dy, d=Math.hypot(it.x-px, it.y-py);
+      if (d < bd) { bd = d; best = { px, py, ang: Math.atan2(dy, dx) }; }
+    }
+    if (!best) return;
+    it.x = Math.round(best.px*100)/100; it.y = Math.round(best.py*100)/100;
+    // keep the item's current facing if it's already aligned either way
+    if (Math.abs(Math.cos(it.rotation - best.ang)) < 0.9) it.rotation = best.ang;
   }
   _hitR(wx, wy) {
     for (let i=this.state.rooms.length-1; i>=0; i--) {
@@ -546,6 +625,7 @@ export class Editor2D {
     ctx.fillStyle = BG; ctx.fillRect(0, 0, W, H);
     this._drawGrid(ctx, W, H);
     this._drawSnapGuides(ctx, W, H);
+    this._drawGhost(ctx);
     this._drawRooms(ctx);
     this._drawWalls(ctx);
     this._drawRoomPreview(ctx);
@@ -629,6 +709,19 @@ export class Editor2D {
     }
   }
 
+  _drawGhost(ctx) {
+    const fl = this.state.floors, i = this.state.activeFloor;
+    if (!fl || !(i > 0)) return;
+    const below = fl[i-1];
+    ctx.save();
+    ctx.globalAlpha = 0.22; ctx.strokeStyle = '#8aa0c0'; ctx.lineWidth = Math.max(1.5, 4*this.zoom/PX_DEF); ctx.lineCap = 'round';
+    ctx.setLineDash([5, 4]);
+    for (const w of below.walls) { const a=this.w2s(w.x1,w.y1), b=this.w2s(w.x2,w.y2); ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+    ctx.lineWidth = 1;
+    for (const r of below.rooms) { if (r.outdoor) continue; const a=this.w2s(r.x,r.y); ctx.strokeRect(a.x,a.y,r.width*this.zoom,r.height*this.zoom); }
+    ctx.restore();
+  }
+
   _drawRoomPreview(ctx) {
     if (!this._roomPrev) return;
     const r=this._roomPrev, s=this.w2s(r.x,r.y);
@@ -642,14 +735,16 @@ export class Editor2D {
   }
 
   _drawWalls(ctx) {
-    const thick = Math.max(3, 8*this.zoom/PX_DEF);
     for (const w of this.state.walls) {
+      const thick = Math.max(2.5, (w.thick ?? 0.4)*this.zoom);
       const s1=this.w2s(w.x1,w.y1), s2=this.w2s(w.x2,w.y2);
-      ctx.strokeStyle=WALL_CLR; ctx.lineWidth=thick; ctx.lineCap='round';
+      const sel = w.id === this.state.selectedId;
+      ctx.strokeStyle = sel ? '#ffd400' : (w.ext ? '#e4ecf5' : WALL_CLR); ctx.lineWidth=thick; ctx.lineCap='square';
       ctx.beginPath(); ctx.moveTo(s1.x,s1.y); ctx.lineTo(s2.x,s2.y); ctx.stroke();
-      ctx.fillStyle='#A0C8E8';
-      for (const p of [s1,s2]) { ctx.beginPath(); ctx.arc(p.x,p.y,4,0,6.28); ctx.fill(); }
-      if (this.zoom > 14) {
+      if (sel) {
+        for (const p of [s1,s2]) { ctx.fillStyle='#fff'; ctx.strokeStyle='#ff6b35'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(p.x,p.y,6,0,6.28); ctx.fill(); ctx.stroke(); }
+      }
+      if (this.zoom > 14 && (sel || this.state.tool === 'wall')) {
         const len=Math.hypot(w.x2-w.x1, w.y2-w.y1);
         const mx=(s1.x+s2.x)/2, my=(s1.y+s2.y)/2;
         const ang=Math.atan2(s2.y-s1.y, s2.x-s1.x);
@@ -681,7 +776,7 @@ export class Editor2D {
 
   _drawFurniture(ctx) {
     const now = performance.now();
-    for (const it of this.state.furniture) {
+    for (const it of this._sorted()) {
       const c=this.w2s(it.x,it.y), pw=it.width*this.zoom, ph=it.depth*this.zoom;
       const sel = it.id===this.state.selectedId;
       let scale = 1;
@@ -694,12 +789,15 @@ export class Editor2D {
       ctx.save();
       ctx.translate(c.x,c.y); ctx.rotate(it.rotation); ctx.scale(scale,scale);
       if (sel) { ctx.shadowColor='#fff'; ctx.shadowBlur=10; }
-      ctx.fillStyle=it.color;
       ctx.strokeStyle=sel?'#ffffff':'rgba(255,255,255,0.22)';
       ctx.lineWidth=sel?2:1;
-      rrect(ctx,-pw/2,-ph/2,pw,ph,3); ctx.fill(); ctx.stroke();
+      const cat = CATALOG_BY_TYPE[it.type];
+      if (!this._drawSymbol(ctx, it, cat, pw, ph, sel)) {
+        ctx.fillStyle=it.color;
+        rrect(ctx,-pw/2,-ph/2,pw,ph,3); ctx.fill(); ctx.stroke();
+      }
       ctx.shadowBlur=0;
-      if (pw>36 && ph>14) {
+      if (pw>36 && ph>14 && !cat?.opening && cat?.layer !== 3 && cat?.mount !== 'ceiling' && (sel || pw*ph > 900)) {
         ctx.fillStyle='rgba(255,255,255,0.88)';
         ctx.font=`${Math.max(8,Math.min(12,pw/7))}px system-ui`;
         ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -716,6 +814,75 @@ export class Editor2D {
         ctx.fillText('↻', rh.x, rh.y);
       }
     }
+  }
+
+  /** Plan-view symbols for architectural items; returns true if it drew something. */
+  _drawSymbol(ctx, it, cat, pw, ph, sel) {
+    const m = cat?.model;
+    if (m === 'door' || m === 'slider' || m === 'garageDoor' || m === 'opening') {
+      ctx.fillStyle = '#111827'; ctx.fillRect(-pw/2, -ph/2, pw, ph);       // gap in the wall
+      ctx.strokeStyle = sel ? '#ffd400' : '#e6c98f'; ctx.lineWidth = sel ? 2 : 1.2;
+      if (m === 'door') {
+        const leaves = it.type === 'door-double' || it.type === 'french-door' ? 2 : 1, lw = pw / leaves;
+        for (let i = 0; i < leaves; i++) {
+          const hx = i === 0 ? -pw/2 : pw/2;
+          ctx.beginPath(); ctx.moveTo(hx, -ph/2); ctx.lineTo(hx, -ph/2 - lw); ctx.stroke();
+          ctx.setLineDash([3,2]); ctx.beginPath();
+          if (i === 0) ctx.arc(hx, -ph/2, lw, -Math.PI/2, 0); else ctx.arc(hx, -ph/2, lw, Math.PI, -Math.PI/2);
+          ctx.stroke(); ctx.setLineDash([]);
+        }
+      } else if (m === 'slider') {
+        ctx.strokeRect(-pw/2, -ph/4, pw/2+2, ph/4); ctx.strokeRect(-2, 0, pw/2+2, ph/4);
+      } else if (m === 'garageDoor') {
+        ctx.setLineDash([6,3]); ctx.strokeRect(-pw/2, -ph/2 - pw*0.9, pw, pw*0.9); ctx.setLineDash([]);
+      } else { ctx.setLineDash([2,3]); ctx.beginPath(); ctx.moveTo(-pw/2,0); ctx.lineTo(pw/2,0); ctx.stroke(); ctx.setLineDash([]); }
+      return true;
+    }
+    if (m === 'window') {
+      ctx.fillStyle = '#cfe6f5'; ctx.fillRect(-pw/2, -ph/2, pw, ph);
+      ctx.strokeStyle = sel ? '#ffd400' : '#4a7fa8'; ctx.lineWidth = sel ? 2 : 1;
+      ctx.strokeRect(-pw/2, -ph/2, pw, ph);
+      ctx.beginPath(); ctx.moveTo(-pw/2, 0); ctx.lineTo(pw/2, 0); ctx.stroke();
+      return true;
+    }
+    if (m === 'stairs' || m === 'stairsDown' || m === 'stairOpening') {
+      ctx.fillStyle = 'rgba(176,160,144,0.35)'; ctx.fillRect(-pw/2, -ph/2, pw, ph);
+      ctx.strokeStyle = sel ? '#ffd400' : 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1;
+      ctx.strokeRect(-pw/2, -ph/2, pw, ph);
+      if (m !== 'stairOpening') {
+        const n = Math.max(3, Math.round((it.height ?? cat.height3d) / 0.65));
+        ctx.beginPath(); for (let i = 1; i < n; i++) { const y = -ph/2 + i*ph/n; ctx.moveTo(-pw/2, y); ctx.lineTo(pw/2, y); } ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = `bold ${Math.max(8, Math.min(11, pw/4))}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(m === 'stairs' ? 'UP ▲' : 'DN ▼', 0, m === 'stairs' ? -ph/4 : ph/4);
+      } else { ctx.beginPath(); ctx.moveTo(-pw/2,-ph/2); ctx.lineTo(pw/2,ph/2); ctx.moveTo(pw/2,-ph/2); ctx.lineTo(-pw/2,ph/2); ctx.stroke(); }
+      return true;
+    }
+    if (m === 'tree' || m === 'pine') {
+      ctx.globalAlpha = 0.35; ctx.fillStyle = it.color;
+      ctx.beginPath(); ctx.ellipse(0, 0, pw/2, ph/2, 0, 0, 6.28); ctx.fill();
+      ctx.globalAlpha = 1; ctx.strokeStyle = sel ? '#ffd400' : 'rgba(180,230,160,0.5)'; ctx.stroke();
+      ctx.fillStyle = '#5b4632'; ctx.beginPath(); ctx.arc(0, 0, Math.max(2, pw*0.05), 0, 6.28); ctx.fill();
+      return true;
+    }
+    if (cat?.mount === 'ceiling' && it.width > 6) {
+      ctx.strokeStyle = sel ? '#ffd400' : 'rgba(201,167,124,0.35)'; ctx.setLineDash([4,4]); ctx.strokeRect(-pw/2, -ph/2, pw, ph); ctx.setLineDash([]);
+      return true;
+    }
+    if (m === 'rug') {
+      ctx.globalAlpha = 0.55; ctx.fillStyle = it.color;
+      if (it.type.includes('round')) { ctx.beginPath(); ctx.ellipse(0,0,pw/2,ph/2,0,0,6.28); ctx.fill(); }
+      else { ctx.fillRect(-pw/2,-ph/2,pw,ph); ctx.globalAlpha = 0.8; ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.strokeRect(-pw/2+3,-ph/2+3,pw-6,ph-6); }
+      ctx.globalAlpha = 1;
+      return true;
+    }
+    if (cat?.layer === 2) {   // wall-mounted / hanging things: dashed outline only
+      ctx.strokeStyle = sel ? '#ffd400' : 'rgba(255,255,255,0.4)'; ctx.setLineDash([3,2]);
+      if (['pendant', 'ceilingLight', 'lantern', 'tableLamp'].includes(m)) { ctx.beginPath(); ctx.arc(0,0,Math.max(3,pw/2),0,6.28); ctx.stroke(); }
+      else ctx.strokeRect(-pw/2,-ph/2,pw,ph);
+      ctx.setLineDash([]);
+      return true;
+    }
+    return false;
   }
 
   destroy() {

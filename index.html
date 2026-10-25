@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Apartment Designer</title>
+  <title>House Designer — 191 Webster St</title>
   <link rel="stylesheet" href="style.css">
   <script type="importmap">
   {
@@ -39,14 +39,16 @@
       </div>
       <div class="tb-sep"></div>
       <div class="tb-group">
+        <button class="tb-btn" id="btn-preset" title="Load 191 Webster St model">🏡</button>
         <button class="tb-btn" id="btn-save"   title="Download layout">💾</button>
         <button class="tb-btn" id="btn-load"   title="Load layout">📂</button>
         <button class="tb-btn" id="btn-clear"  title="Clear all">🗑</button>
-        <button class="tb-btn" id="btn-export" title="Save as PNG">📷</button>
+        <button class="tb-btn" id="btn-export" title="Save image (plan or 3D view)">📷</button>
         <button class="tb-btn" id="btn-sound"  title="Toggle sound">🔊</button>
       </div>
     </div>
-    <h1>Apartment Designer</h1>
+    <div id="floor-tabs" class="floor-tabs" title="Floor you are editing"></div>
+    <h1>House Designer</h1>
   </header>
 
   <!-- ── Main ── -->
@@ -68,18 +70,36 @@
       <canvas id="canvas-2d"></canvas>
       <div id="view-3d"></div>
 
+      <!-- 3D view controls -->
+      <div id="view3d-bar" style="display:none">
+        <div class="v3-group"><span class="v3-label">Show</span><div id="v3-levels" class="v3-seg"></div></div>
+        <div class="v3-group">
+          <button id="v3-roof"     class="v3-btn" title="Show roofs">⌂ Roof</button>
+          <button id="v3-ceilings" class="v3-btn" title="Show ceilings">▔ Ceilings</button>
+          <button id="v3-cutaway"  class="v3-btn" title="Dollhouse: lower the walls of the top visible floor">✂ Cutaway</button>
+        </div>
+        <div class="v3-group">
+          <button id="v3-walk" class="v3-btn" title="First-person walk-through">🚶 Walk</button>
+          <button id="v3-home" class="v3-btn" title="Reset camera">⌖</button>
+        </div>
+      </div>
+      <div id="walk-pad" style="display:none">
+        <button data-k="tl">↺</button><button data-k="f">▲</button><button data-k="tr">↻</button>
+        <button data-k="l">◀</button><button data-k="b">▼</button><button data-k="r">▶</button>
+      </div>
+
       <!-- Budget HUD -->
       <div id="budget-hud">
         <div class="budget-row">
-          <span class="budget-label">Budget</span>
+          <span class="budget-label">Furnishings</span>
           <span class="budget-nums">
             <span id="budget-spent">$0</span>
             <span class="budget-sep">/</span>
-            <span class="budget-total">$10,000</span>
+            <span class="budget-total">$75,000</span>
           </span>
         </div>
         <div class="budget-track"><div id="budget-fill"></div></div>
-        <div id="budget-remaining">$10,000 left</div>
+        <div id="budget-remaining">$75,000 left</div>
       </div>
 
       <!-- Zoom controls -->
@@ -99,12 +119,12 @@
 
     <!-- Right: Properties panel -->
     <aside id="props-panel">
-      <div id="pp-header">Properties</div>
+      <div id="pp-header"><span>Properties</span><button id="pp-close" title="Close">✕</button></div>
 
       <!-- Nothing selected -->
       <div id="props-empty-state">
         <div class="pe-icon">↖</div>
-        <div class="pe-text">Select a room or furniture item to edit its properties</div>
+        <div class="pe-text">Select a room, wall, item — or in 3D a roof — to edit its size, materials and colors</div>
       </div>
 
       <!-- Room props -->
@@ -114,22 +134,43 @@
           <input class="pp-input" id="pp-room-name" type="text" placeholder="Room name">
         </div>
         <div class="pp-section">
-          <div class="pp-label">Color</div>
+          <div class="pp-label">Plan color</div>
           <div class="pp-swatches" id="pp-room-colors"></div>
         </div>
         <div class="pp-row">
           <div class="pp-field">
             <div class="pp-label">Width (ft)</div>
-            <input class="pp-input pp-num" id="pp-room-w" type="number" min="2" step="0.5">
+            <input class="pp-input pp-num" id="pp-room-w" type="number" min="1" step="0.25">
           </div>
           <div class="pp-field">
             <div class="pp-label">Depth (ft)</div>
-            <input class="pp-input pp-num" id="pp-room-h" type="number" min="2" step="0.5">
+            <input class="pp-input pp-num" id="pp-room-h" type="number" min="1" step="0.25">
           </div>
         </div>
         <div class="pp-section">
           <div class="pp-label">Area</div>
           <div class="pp-value" id="pp-room-area">—</div>
+        </div>
+        <div class="pp-section">
+          <div class="pp-label">Floor finish</div>
+          <select class="pp-input" id="pp-room-floor"></select>
+          <div class="pp-swatches pp-mt" id="pp-room-floorcolors"></div>
+        </div>
+        <div class="pp-section">
+          <div class="pp-label">Walls</div>
+          <select class="pp-input" id="pp-room-wallfin"></select>
+          <div class="pp-color-row pp-mt"><input type="color" id="pp-room-wallcolor"><div class="pp-swatches" id="pp-room-paint"></div></div>
+        </div>
+        <div class="pp-row">
+          <div class="pp-field">
+            <div class="pp-label">Floor height (ft)</div>
+            <input class="pp-input pp-num" id="pp-room-off" type="number" step="0.25" title="Offset from the level's floor, e.g. -1 for a garage slab">
+          </div>
+        </div>
+        <div class="pp-section pp-checks">
+          <label><input type="checkbox" id="pp-room-ceiling"> Ceiling</label>
+          <label><input type="checkbox" id="pp-room-auto"> Auto walls</label>
+          <label><input type="checkbox" id="pp-room-outdoor"> Outdoor</label>
         </div>
         <div class="pp-section">
           <button class="pp-btn pp-btn-danger" id="pp-room-delete">🗑 Delete Room</button>
@@ -156,16 +197,41 @@
             <input class="pp-input pp-num" id="pp-furn-d" type="number" min="0.5" step="0.5">
           </div>
         </div>
-        <div class="pp-section">
-          <div class="pp-label">Rotation</div>
-          <div class="pp-rot-row">
-            <input type="range" id="pp-furn-rot" min="-180" max="180" step="5" value="0">
-            <span class="pp-rot-val" id="pp-furn-rot-val">0°</span>
+        <div class="pp-row">
+          <div class="pp-field">
+            <div class="pp-label">Height (ft)</div>
+            <input class="pp-input pp-num" id="pp-furn-ht" type="number" min="0.02" step="0.25">
+          </div>
+          <div class="pp-field">
+            <div class="pp-label">Elevation (ft)</div>
+            <input class="pp-input pp-num" id="pp-furn-lift" type="number" step="0.25" title="Height above the floor — window sill, wall cabinet bottom, etc.">
           </div>
         </div>
         <div class="pp-section">
-          <div class="pp-label">Color</div>
-          <div class="pp-swatches" id="pp-furn-colors"></div>
+          <div class="pp-label">Rotation</div>
+          <div class="pp-rot-row">
+            <input type="range" id="pp-furn-rot" min="-180" max="180" step="15" value="0">
+            <span class="pp-rot-val" id="pp-furn-rot-val">0°</span>
+          </div>
+        </div>
+        <div class="pp-section" id="pp-furn-open-row">
+          <div class="pp-label">Door open</div>
+          <div class="pp-rot-row">
+            <input type="range" id="pp-furn-open" min="0" max="110" step="5" value="0">
+            <span class="pp-rot-val" id="pp-furn-open-val">0°</span>
+          </div>
+        </div>
+        <div class="pp-section">
+          <div class="pp-label">Main color</div>
+          <div class="pp-color-row"><input type="color" id="pp-furn-color"><div class="pp-swatches" id="pp-furn-colors"></div></div>
+        </div>
+        <div class="pp-section">
+          <div class="pp-label">Accent / frame / counter</div>
+          <input type="color" id="pp-furn-color2">
+        </div>
+        <div class="pp-section" id="pp-furn-pattern-row">
+          <div class="pp-label">Bedding</div>
+          <select class="pp-input" id="pp-furn-pattern"></select>
         </div>
         <div class="pp-section">
           <div class="pp-label">Price</div>
@@ -175,7 +241,50 @@
           <button class="pp-btn" id="pp-furn-dup">⧉ Duplicate</button>
           <button class="pp-btn pp-btn-danger" id="pp-furn-delete">🗑 Delete</button>
         </div>
-        <div class="pp-hint">Arrow keys nudge · Del removes</div>
+        <div class="pp-hint">Arrow keys nudge · , . rotate · Del removes</div>
+      </div>
+
+      <!-- Wall props -->
+      <div id="props-wall" style="display:none">
+        <div class="pp-furn-hdr"><span class="pp-furn-icon">▭</span><span class="pp-furn-type">Wall · <span id="pp-wall-len"></span></span></div>
+        <div class="pp-row">
+          <div class="pp-field"><div class="pp-label">Height</div><input class="pp-input pp-num" id="pp-wall-h" type="number" step="0.25"></div>
+          <div class="pp-field"><div class="pp-label">Thickness</div><input class="pp-input pp-num" id="pp-wall-t" type="number" step="0.05" min="0.1"></div>
+        </div>
+        <div class="pp-row">
+          <div class="pp-field"><div class="pp-label">Base offset</div><input class="pp-input pp-num" id="pp-wall-base" type="number" step="0.25"></div>
+        </div>
+        <div class="pp-section pp-checks"><label><input type="checkbox" id="pp-wall-ext"> Exterior wall (siding outside)</label></div>
+        <div class="pp-section">
+          <div class="pp-label">Side A finish</div>
+          <div class="pp-color-row"><select class="pp-input" id="pp-wall-finA"></select><input type="color" id="pp-wall-colA"></div>
+        </div>
+        <div class="pp-section">
+          <div class="pp-label">Side B finish</div>
+          <div class="pp-color-row"><select class="pp-input" id="pp-wall-finB"></select><input type="color" id="pp-wall-colB"></div>
+        </div>
+        <div class="pp-section pp-actions">
+          <button class="pp-btn" id="pp-wall-flip" title="Swap sides A and B">⇄ Flip</button>
+          <button class="pp-btn" id="pp-wall-split" title="Split into two walls at the midpoint">✂ Split</button>
+        </div>
+        <div class="pp-section"><button class="pp-btn pp-btn-danger" id="pp-wall-delete">🗑 Delete Wall</button></div>
+        <div class="pp-hint">Drag the wall to move it · drag its end dots to reshape (joined corners move together). Doors &amp; windows placed on a wall cut it automatically.</div>
+      </div>
+
+      <!-- Roof props -->
+      <div id="props-roof" style="display:none">
+        <div class="pp-furn-hdr"><span class="pp-furn-icon">⌂</span><span class="pp-furn-type">Roof</span></div>
+        <div class="pp-section"><div class="pp-label">Name</div><input class="pp-input" id="pp-roof-name" type="text"></div>
+        <div class="pp-row">
+          <div class="pp-field"><div class="pp-label">Eave height</div><input class="pp-input pp-num" id="pp-roof-eave" type="number" step="0.25"></div>
+          <div class="pp-field"><div class="pp-label">Ridge height</div><input class="pp-input pp-num" id="pp-roof-ridge" type="number" step="0.25"></div>
+        </div>
+        <div class="pp-row"><div class="pp-field"><div class="pp-label">Overhang</div><input class="pp-input pp-num" id="pp-roof-over" type="number" step="0.25" min="0"></div></div>
+        <div class="pp-section"><div class="pp-label">Roofing</div><select class="pp-input" id="pp-roof-fin"></select></div>
+        <div class="pp-section"><div class="pp-label">Roof color</div><div class="pp-swatches" id="pp-roof-colors"></div></div>
+        <div class="pp-section"><div class="pp-label">House siding color</div><div class="pp-swatches" id="pp-site-siding"></div></div>
+        <div class="pp-section"><button class="pp-btn pp-btn-danger" id="pp-roof-delete">🗑 Delete Roof</button></div>
+        <div class="pp-hint">Heights are measured from the 1st-floor surface.</div>
       </div>
     </aside>
 
@@ -183,7 +292,7 @@
 
   <!-- ── Status bar ── -->
   <footer id="statusbar">
-    <span id="status-text">Draw Room: drag on the canvas to create a room</span>
+    <span id="status-text"></span>
     <span id="zoom-label">20 px/ft</span>
   </footer>
 
