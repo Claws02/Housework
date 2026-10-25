@@ -38,5 +38,11 @@ Add `?view=3d` to the URL to open straight into 3D.
 | `furniture.js` | Catalog: dimensions, default colors, model key, wall-opening and mount flags |
 | `house191.js` | The 191 Webster St preset |
 
+**Real-world scale.** Everything is in feet. In the preset, each room's clear interior (wall face to wall face) matches
+the listing, with 6″ exterior walls, 4½″ partitions and a 9.6″ foundation. The walk-through camera is set for a
+5′10″ person (eyes at 5′5½″), walks at 3 mph (jogs at 6 mph at the joystick's rim or with Shift) and aims for a ~90° horizontal
+field of view: about 103° in landscape and 54° in portrait, where the vertical is capped at 95° to avoid distortion. Oak boards are 7″ wide.
+Doors are 6′8″, counters 36″ and ceilings 8′.
+
 Dimensions are in feet. Plan +x is left → right and plan +y is rear → street. An item's front faces plan +y at
 rotation 0. The preset is approximate: the listing plan gives room sizes, not wall-to-wall positions.

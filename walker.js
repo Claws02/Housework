@@ -12,8 +12,10 @@ const RADIUS = 0.7;          // body radius (ft)
 const BODY_H = 5.4;          // collision height
 const STEP_UP = 1.05;        // tallest step you can walk up
 const MAX_DROP = 2.6;        // won't walk off ledges taller than this
-const WALK = 5.5, RUN = 12;  // ft/s
-const EYE = 5.15;
+// Real-world scale (feet). Person 5'10" → eyes ~4.5" below the crown.
+export const PERSON_H = 5.83;
+const EYE = PERSON_H - 0.375;        // 5'5.5"
+const WALK = 4.4, JOG = 9;           // 3 mph stroll · 6 mph jog (push the stick to its edge / hold Shift)
 const NO_COLLIDE = new Set(['rug', 'stairs', 'stairsDown', 'stairOpening', 'steps', 'joists', 'ceilingLight', 'pendant',
   'lantern', 'curtains', 'wallArt', 'mirror', 'hosta', 'door', 'slider', 'window', 'opening', 'garageDoor', 'tableLamp', 'tv', 'elecPanel']);
 const PREF_KEY = 'house-walk';
@@ -29,6 +31,7 @@ export class Walker {
     this.thirdPerson = pref.third ?? true;
     this.shirtIdx = pref.shirt ?? 0;
     this.char = makeCharacter({ shirt: SHIRT_COLORS[this.shirtIdx % SHIRT_COLORS.length] });
+    this.char.group.scale.setScalar(PERSON_H / 5.7);   // model is 5'8.4" tall as built
     this.v.scene.add(this.char.group);
 
     this.pos = new THREE.Vector3();   // feet (world): x, y, z
@@ -314,8 +317,10 @@ export class Walker {
     this.yaw += kt * dt * 2;
     let mag = Math.min(1, Math.hypot(mx, my));
     if (mag < 0.12) mag = 0;
-    const running = k.has('shift') || mag > 0.9;
-    const speed = mag ? (running ? RUN : WALK * Math.max(0.35, mag / 0.9)) : 0;
+    // analog: a gentle push strolls, most of the throw is a normal walk, the outer rim jogs
+    const running = k.has('shift') || (this.joy.id !== null && mag > 0.96);
+    const speed = mag ? (running ? JOG : WALK * clamp((mag - 0.12) / 0.7, 0.3, 1)) : 0;
+    this._speedNow = speed;
 
     // camera-relative direction: forward = (sin yaw, cos yaw); right = (−cos yaw, sin yaw)
     let moved = 0;
@@ -382,11 +387,15 @@ export class Walker {
     const cam = this.v.camera;
     const cp = Math.cos(this.pitch), dir = new THREE.Vector3(Math.sin(this.yaw) * cp, Math.sin(this.pitch), Math.cos(this.yaw) * cp);
     if (!this.thirdPerson) {
-      cam.position.set(this.pos.x, this.pos.y + EYE, this.pos.z);
+      // subtle head bob synced to the stride (≈1" at a walk)
+      const sp = this._speedNow || 0;
+      if (sp > 0.2) this._bob = (this._bob || 0) + dt * (5.2 + sp * 0.55); else this._bob = 0;
+      const bob = Math.sin(this._bob * 2) * 0.03 * Math.min(1, sp / WALK);
+      cam.position.set(this.pos.x, this.pos.y + EYE + bob, this.pos.z);
       cam.lookAt(cam.position.clone().add(dir));
       return;
     }
-    const target = new THREE.Vector3(this.pos.x, this.pos.y + 4.6, this.pos.z);
+    const target = new THREE.Vector3(this.pos.x, this.pos.y + PERSON_H - 0.9, this.pos.z);
     let dist = this.camDist;
     // keep a wall or ceiling from getting between the camera and the character
     this._ray.set(target, dir.clone().negate());

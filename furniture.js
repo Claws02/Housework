@@ -97,7 +97,7 @@ export const FURNITURE_CATALOG = [
   ...C('Lighting', [
     ['floor-lamp',    'Floor Lamp',      1.3, 1.3, 5.2, '#2b2b2e', 'floorLamp',   '💡', 120],
     ['table-lamp',    'Table Lamp',      1.2, 1.2, 2,   '#5b8fa8', 'tableLamp',   '💡', 80,  { lift: 2.2, layer: 2 }],
-    ['pendant',       'Glass Pendant',   0.9, 0.9, 1,   '#e9eef0', 'pendant',     '💡', 180, { lift: 5.3, layer: 2 }],
+    ['pendant',       'Glass Pendant',   0.9, 0.9, 1,   '#e9eef0', 'pendant',     '💡', 180, { lift: 6.2, layer: 2 }],   // 30–36" above a counter
     ['ceiling-light', 'Flush Ceiling Light', 1.4, 1.4, 0.4, '#f6f4ee', 'ceilingLight', '💡', 90, { mount: 'ceiling', layer: 2 }],
     ['lantern',       'Porch Lantern',   1,   1,   1.4, '#2b2b2e', 'lantern',     '🏮', 140, { lift: 5.8, layer: 2 }],
   ]),

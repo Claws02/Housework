@@ -1,7 +1,14 @@
 // Preset: 191 Webster St, Marshfield MA — 3 bed / 2 bath Cape with rear dormer,
-// dining addition, attached 2-car garage, decks and yard. Laid out in feet from the
-// listing floor plan: plan +x = left→right as drawn, plan +y = rear (top) → street (bottom).
-// Main block 32'3" × 23'0" (matches the basement). Dimensions are approximate.
+// dining addition, attached 2-car garage, decks and yard. Units are feet.
+// Plan +x = left→right as drawn on the listing plan, plan +y = rear (top) → street (bottom).
+//
+// Laid out from INTERIOR faces so every room's clear size matches the listing:
+//   origin = inside face of the 1st-floor left & rear walls of the main block.
+//   Exterior frame walls 6" (centre 3" outside the face), interior partitions 4.5",
+//   foundation 9.6" flush with the siding above.
+// Cross-checks: front row 19'7" living (incl. stair) + 2' closet + 10'6" bedroom + walls = 32.9';
+// rear row 9'1" nook + 16' kitchen + 7'5" bath + wall = 32.9'; 2nd floor 13'10" + 6'3" + 12'2" + walls = 33.0';
+// basement 32'3" clear = 32.9' less the thicker foundation walls.
 import { CATALOG_BY_TYPE } from './furniture.js';
 
 export const GROUND = -1.25;            // grade, relative to the 1st-floor surface
@@ -48,298 +55,334 @@ export function buildHouse191() {
   };
   const roof = o => site.roofs.push({ id: id('g'), finish: 'shingle', color: '#4d4b4a', overhang: 0.75, noGable: [], ...o });
 
+  const EXT = 0.5, INT = 0.375, FND = 0.8;
+  const W = 32.88, D = 23.04;              // main block clear interior (1st floor)
+  const xL = -EXT / 2, xR = W + EXT / 2, yB = -EXT / 2, yF = D + EXT / 2;   // exterior wall centrelines
+  const OUT = { x0: -EXT, x1: W + EXT, y0: -EXT, y1: D + EXT };         // outer faces (siding)
+
   // ═══ BASEMENT ════════════════════════════════════════════════════════════
   on(0);
-  room('Basement', 0, 0, 32.25, 23, { floor: 'concrete', wallFinish: 'concrete', wall: '#c9c5bd', ceiling: false, color: '#64748b' });
-  room('Storage', 0, -12.6, 14, 12.6, { floor: 'concrete', wallFinish: 'concrete', wall: '#c9c5bd', ceiling: false, color: '#78716c' });
-  const fnd = { t: 0.8, ext: true };
-  chain([[0, 0], [0, 23], [32.25, 23], [32.25, 0], [14, 0]], fnd);
-  chain([[0, 0], [0, -12.6], [14, -12.6], [14, 0]], fnd);
-  wall(0, 0, 14, 0, { t: 0.8 });
-  item('arch', 10, 0, { w: 3, height: 6.5, rot: 0 });
-  door(0, -8, 90, { lift: 0, height: 6.5, open: 60 });                 // to bulkhead
-  win(6, 23, 0, { type: 'window-bsmt' }); win(26, 23, 0, { type: 'window-bsmt' });
-  win(32.25, 12, 90, { type: 'window-bsmt' }); win(24, 0, 0, { type: 'window-bsmt' });
-  win(7, -12.6, 0, { type: 'window-bsmt' });
-  item('joists', 16.12, 11.5, { w: 31.5, d: 22.4 });
-  item('joists', 7, -6.3, { w: 13.2, d: 11.8, label: 'Joists (storage)' });
-  item('boiler', 26.5, 2.4, { rot: 0 });
-  item('water-heater', 23.2, 1.7);
-  item('elec-panel', 20.5, 0.6, { lift: 3.5 });
-  item('metal-shelf', 31.3, 8, { rot: -90 });
-  item('metal-shelf', 31.3, 13, { rot: -90 });
-  item('utility-sink', 29, 1.4);
-  item('post', 10.5, 11.5, { w: 0.35, d: 0.35, color: '#5d6167' });
-  item('post', 21.5, 11.5, { w: 0.35, d: 0.35, color: '#5d6167' });
-  item('metal-shelf', 2, -4, { rot: 90 });
-  item('metal-shelf', 2, -9, { rot: 90, color: '#d5d7da' });
-  item('workbench', 9, -11.3, { rot: 0 });
-  item('trash-bin', 4, 21.5, { label: 'Dehumidifier', color: '#e8e8e8', w: 1.4, d: 1.2, height: 2 });
+  const fx0 = OUT.x0 + FND / 2, fx1 = OUT.x1 - FND / 2, fy0 = OUT.y0 + FND / 2, fy1 = OUT.y1 - FND / 2;
+  const DIN = { x1: 14.42, y0: -EXT - 13.42 };   // dining addition clear: x 0..14.42, y −13.92..−0.5
+  const dx1o = DIN.x1 + EXT, dy0o = DIN.y0 - EXT;  // its outer faces
+  room('Basement', fx0, fy0, fx1 - fx0, fy1 - fy0, { floor: 'concrete', wallFinish: 'concrete', wall: '#c9c5bd', ceiling: false, color: '#64748b' });
+  room('Storage', fx0, dy0o + FND / 2, dx1o - FND / 2 - fx0, fy0 - (dy0o + FND / 2), { floor: 'concrete', wallFinish: 'concrete', wall: '#c9c5bd', ceiling: false, color: '#78716c' });
+  const fnd = { t: FND, ext: true };
+  chain([[fx0, fy0], [fx0, fy1], [fx1, fy1], [fx1, fy0], [dx1o - FND / 2, fy0]], fnd);
+  chain([[fx0, fy0], [fx0, dy0o + FND / 2], [dx1o - FND / 2, dy0o + FND / 2], [dx1o - FND / 2, fy0]], fnd);
+  wall(fx0, fy0, dx1o - FND / 2, fy0, { t: FND });
+  item('arch', 10, fy0, { w: 3, height: 6.5, rot: 0 });
+  door(fx0, -9, 90, { lift: 0, height: 6.5, open: 60 });                 // to bulkhead
+  win(6, fy1, 0, { type: 'window-bsmt' }); win(26.5, fy1, 0, { type: 'window-bsmt' });
+  win(fx1, 12, 90, { type: 'window-bsmt' }); win(24.5, fy0, 0, { type: 'window-bsmt' });
+  win(7, dy0o + FND / 2, 0, { type: 'window-bsmt' });
+  item('joists', (fx0 + fx1) / 2, (fy0 + fy1) / 2, { w: fx1 - fx0 - 0.8, d: fy1 - fy0 - 0.8 });
+  item('joists', 7.2, -7.2, { w: 13.6, d: 12.6, label: 'Joists (storage)' });
+  item('boiler', 27, 2.5, { rot: 0 });
+  item('water-heater', 23.6, 1.6);
+  item('elec-panel', 20.8, 0.55, { lift: 3.5 });
+  item('metal-shelf', 31.8, 8, { rot: -90 });
+  item('metal-shelf', 31.8, 13, { rot: -90 });
+  item('utility-sink', 29.6, 1.4);
+  item('post', 10.8, 11.3, { w: 0.35, d: 0.35, color: '#5d6167' });
+  item('post', 22, 11.3, { w: 0.35, d: 0.35, color: '#5d6167' });
+  item('metal-shelf', 1.1, -4.2, { rot: 90 });
+  item('metal-shelf', 1.1, -9.8, { rot: 90 });
+  item('workbench', 8.6, -12.2, { rot: 0 });
+  item('trash-bin', 4, 21.6, { label: 'Dehumidifier', color: '#e8e8e8', w: 1.4, d: 1.2, height: 2 });
 
   // ═══ 1ST FLOOR ═══════════════════════════════════════════════════════════
   on(1);
-  room('Living Room', 0, 11.5, 16.5, 11.5, { wall: '#e6e4dd', color: '#3b82f6' });
-  room('Foyer / Stairs', 16.5, 11.5, 3, 11.5, { wall: '#e6e4dd', color: '#94a3b8' });
-  room('Closet', 19.5, 11.5, 2.25, 11.5, { wall: '#ecebe6', color: '#64748b' });
-  room('Kitchen', 9.1, 0, 15.9, 11.5, { wall: '#d9dbdc', color: '#22c55e' });
-  room('Breakfast Nook', 0, 0, 9.1, 11.5, { wall: '#d9dbdc', color: '#84cc16' });
-  room('Dining Room', 0, -13.4, 14.4, 13.4, { wall: '#dcc896', color: '#f59e0b', ceiling: false });
-  room('Bath', 25, 0, 7.25, 7.75, { floor: 'tile', floorColor: '#7d7b76', wall: '#eadfc3', color: '#06b6d4' });
-  room('Hall', 25, 7.75, 7.25, 3.75, { wall: '#e6e4dd', color: '#94a3b8' });
-  room('Mudroom', 32.25, 3.5, 4.25, 8, { floor: 'tile', floorColor: '#7d7b76', wall: '#e6e4dd', color: '#94a3b8' });
-  room('Bedroom', 21.75, 11.5, 10.5, 11.5, { wall: '#ead9a2', color: '#ec4899' });
-  room('Garage', 42, -3.5, 25.75, 27.5, { floor: 'concrete', wallFinish: 'framing', wall: '#c99a66', offset: -1, ceiling: false, color: '#78716c' });
-  room('Rear Deck', 14.4, -17.25, 27.6, 17.25, { floor: 'deck', offset: -0.5, outdoor: true, ceiling: false, color: '#a16207' });
-  room('Covered Porch', 32.25, 11.5, 9.75, 12, { floor: 'deck', offset: -0.4, outdoor: true, ceiling: false, color: '#a16207' });
-  room('Driveway', 42, 24, 25.75, 58, { floor: 'asphalt', offset: -1.2, outdoor: true, ceiling: false, color: '#525252' });
-  room('Front Walk', 16.5, 25.5, 3.2, 56.5, { floor: 'stone', offset: -1.2, outdoor: true, ceiling: false, color: '#a8a29e' });
+  // key lines (interior faces & partition centrelines)
+  const xStairL = 16.58 - INT / 2, xStairR = 19.58 + INT / 2;      // stair: 3'0" clear between 16.58 and 19.58
+  const xBedW = 21.96 + INT / 2;                                    // closet 19.96..21.96 (2'), bedroom 22.33..32.88 (10'6")
+  const xBath = 25.08 + INT / 2;                                    // kitchen 9.08..25.08 (16'), bath 25.46..32.88 (7'5")
+  const yRow = 11.25 + INT / 2;                                     // kitchen 0..11.25 (11'3"), bedroom 11.63..23.04 (11'5")
+  const yBath = 7.83 + INT / 2;                                     // bath 0..7.83 (7'10")
+  const BUMP = { x1: W + EXT + 4.58, y0: 11.25 - 8.58 };            // hall 12'0" × 8'7" = hall 7'5" + mudroom bump 4'7"
+  const GAR = { x0: OUT.x1 + 9.42 + EXT, y0: -3.25, w: 25.75, d: 27.5 };   // porch deck 9'5" wide between house and garage
+  const gx0 = GAR.x0 - EXT / 2, gx1 = GAR.x0 + GAR.w + EXT / 2, gy0 = GAR.y0 - EXT / 2, gy1 = GAR.y0 + GAR.d + EXT / 2;
+  const DOOR_X = 14.6;                                              // front door (into the living room, beside the stair)
+
+  room('Living Room', xL, yRow, xStairL - xL, yF - yRow, { wall: '#e6e4dd', color: '#3b82f6' });
+  room('Stairs', xStairL, yRow, xStairR - xStairL, yF - yRow, { wall: '#e6e4dd', color: '#94a3b8' });
+  room('Closet', xStairR, yRow, xBedW - xStairR, yF - yRow, { wall: '#ecebe6', color: '#64748b' });
+  room('Kitchen', 9.08, yB, xBath - 9.08, yRow - yB, { wall: '#d9dbdc', color: '#22c55e' });
+  room('Breakfast Nook', xL, yB, 9.08 - xL, yRow - yB, { wall: '#d9dbdc', color: '#84cc16' });
+  room('Dining Room', xL, dy0o + EXT / 2, dx1o - EXT / 2 - xL, yB - (dy0o + EXT / 2), { wall: '#dcc896', color: '#f59e0b', ceiling: false });
+  room('Bath', xBath, yB, xR - xBath, yBath - yB, { floor: 'tile', floorColor: '#7d7b76', wall: '#eadfc3', color: '#06b6d4' });
+  room('Hall', xBath, yBath, xR - xBath, yRow - yBath, { wall: '#e6e4dd', color: '#94a3b8' });
+  room('Mudroom', xR, BUMP.y0 - EXT / 2, BUMP.x1 + EXT / 2 - xR, yRow - (BUMP.y0 - EXT / 2), { floor: 'tile', floorColor: '#7d7b76', wall: '#e6e4dd', color: '#94a3b8' });
+  room('Bedroom', xBedW, yRow, xR - xBedW, yF - yRow, { wall: '#ead9a2', color: '#ec4899' });
+  room('Garage', gx0, gy0, gx1 - gx0, gy1 - gy0, { floor: 'concrete', wallFinish: 'framing', wall: '#c99a66', offset: -1, ceiling: false, color: '#78716c' });
+  room('Rear Deck', dx1o - EXT / 2, -EXT - 17.25, 27.83 + EXT / 2, 17.25 + EXT / 2, { floor: 'deck', offset: -0.5, outdoor: true, ceiling: false, color: '#a16207' });
+  room('Covered Porch', OUT.x1, 8.5, gx0 - OUT.x1, 15.25, { floor: 'deck', offset: -0.4, outdoor: true, ceiling: false, color: '#a16207' });
+  room('Driveway', gx0, gy1, gx1 - gx0, 82 - gy1, { floor: 'asphalt', offset: -1.2, outdoor: true, ceiling: false, color: '#525252' });
+  room('Front Walk', DOOR_X - 1.6, OUT.y1 + 2.4, 3.2, 82 - OUT.y1 - 2.4, { floor: 'stone', offset: -1.2, outdoor: true, ceiling: false, color: '#a8a29e' });
   room('Webster St', -60, 82, 190, 22, { floor: 'asphalt', floorColor: '#3c3c3e', offset: -1.22, outdoor: true, ceiling: false, color: '#3f3f46' });
 
-  const E1 = { ext: true, h: 10.5, t: 0.5 };
-  chain([[0, 0], [0, 23], [32.25, 23], [32.25, 11.5]], E1);
-  wall(32.25, 3.5, 32.25, 0, E1);
-  wall(32.25, 0, 14.4, 0, E1);
-  wall(14.4, 0, 0, 0, { t: 0.5, h: 8 });                                    // nook/kitchen ↔ dining
-  chain([[0, 0], [0, -13.4], [14.4, -13.4], [14.4, 0]], { ext: true, h: 9, t: 0.5 });
-  chain([[32.25, 3.5], [36.5, 3.5], [36.5, 11.5], [32.25, 11.5]], { ext: true, h: 8.25, t: 0.5 }); // mudroom bump-out
-  wall(32.25, 3.5, 32.25, 7.75);                                           // bath ↔ mudroom
-  wall(25, 0, 25, 7.75);                                                   // bath W
-  wall(25, 7.75, 32.25, 7.75);                                             // bath N
-  wall(16.5, 11.5, 16.5, 21.25);                                           // stair L
-  wall(19.5, 11.5, 19.5, 23);                                              // stair R
-  wall(16.5, 11.5, 19.5, 11.5);                                            // basement door wall
-  wall(19.5, 11.5, 32.25, 11.5);                                           // hall ↔ bedroom
-  wall(21.75, 11.5, 21.75, 23);                                            // bedroom W
-  const G = { ext: true, h: 9.5, base: -1, t: 0.5 };
-  chain([[42, 24], [67.75, 24], [67.75, -3.5], [42, -3.5], [42, 24]], G);
+  const E1 = { ext: true, h: 10.5, t: EXT };
+  chain([[xL, yB], [xL, yF], [xR, yF], [xR, yRow + INT / 2 + 0.01]], E1);
+  wall(xR, BUMP.y0 - EXT / 2, xR, yB, E1);
+  wall(xR, yB, dx1o - EXT / 2, yB, E1);
+  wall(dx1o - EXT / 2, yB, xL, yB, { t: EXT, h: 8 });                       // nook/kitchen ↔ dining (old exterior wall)
+  chain([[xL, yB], [xL, dy0o + EXT / 2], [dx1o - EXT / 2, dy0o + EXT / 2], [dx1o - EXT / 2, yB]], { ext: true, h: 9, t: EXT });
+  chain([[xR, BUMP.y0 - EXT / 2], [BUMP.x1 + EXT / 2, BUMP.y0 - EXT / 2], [BUMP.x1 + EXT / 2, yRow + INT / 2 + 0.01], [xR, yRow + INT / 2 + 0.01]], { ext: true, h: 8.25, t: EXT });
+  const P = { t: INT };
+  wall(xR, BUMP.y0 - EXT / 2, xR, yBath, { t: EXT });                      // bath ↔ mudroom
+  wall(xBath, yB, xBath, yBath, P);
+  wall(xBath, yBath, xR, yBath, P);
+  wall(xStairL, yRow, xStairL, 20.4, P);                                    // stair L (open at the bottom to the living room)
+  wall(xStairR, yRow, xStairR, yF, P);
+  wall(xStairL, yRow, xStairR, yRow, P);                                    // basement door wall
+  wall(xStairR, yRow, xR, yRow, P);
+  wall(xBedW, yRow, xBedW, yF, P);
+  chain([[gx0, gy1], [gx1, gy1], [gx1, gy0], [gx0, gy0], [gx0, gy1]], { ext: true, h: 9.5, base: -1, t: EXT });
 
   // Openings
-  door(18, 23, 0, { type: 'door-ext', color: '#d9b44a', label: 'Front Door' });
-  item('arch', 16.5, 22.1, { rot: 90, w: 1.6, label: 'Opening to living' });
-  win(4.2, 23, 0); win(10.6, 23, 0); win(27, 23, 0);
-  win(0, 5.4, 90, { lift: 3.5, height: 3.6 }); win(0, 2.2, 90, { lift: 3.5, height: 3.6, w: 2.4 }); win(0, 8.6, 90, { lift: 3.5, height: 3.6, w: 2.4 });
-  win(0, 12.6, 90, { type: 'window-sm' });
-  win(18.6, 0, 0, { w: 3.6, lift: 3.7, height: 3.4, label: 'Window over sink' });
-  win(22.6, 0, 0, { type: 'window-sm', lift: 4.3, w: 2 });
-  win(29.6, 0, 0, { type: 'window-sm', lift: 4.5, w: 2.4, grid: false });
-  win(32.25, 14.2, 90, { w: 2.6 }); win(32.25, 20.8, 90, { w: 2.6 });
-  item('arch', 7, 0, { rot: 0, w: 7, height: 7, label: 'Opening to dining' });
-  win(0, -4, 90, { w: 3.2, lift: 2.4, height: 5 }); win(0, -9.6, 90, { w: 3.2, lift: 2.4, height: 5 });
-  win(3.6, -13.4, 0, { w: 3, lift: 2.4, height: 5 }); win(7.2, -13.4, 0, { w: 3, lift: 2.4, height: 5 }); win(10.8, -13.4, 0, { w: 3, lift: 2.4, height: 5 });
-  item('sliding-door', 14.4, -4.6, { rot: 90, w: 6 });
-  win(14.4, -10.6, 90, { w: 3, lift: 2.4, height: 5 });
-  door(28.6, 7.75, 0, { open: 75 });                                       // bath
-  door(18, 11.5, 0, { open: 0, label: 'Basement Door' });
-  door(29.6, 11.5, 0, { open: 80, rot: 180 });                             // bedroom
-  item('door-double', 21.75, 15.4, { rot: 90, w: 4, label: 'Closet Doors' });
-  door(34.4, 11.5, 0, { type: 'door-ext', label: 'Side Door' });
-  win(36.5, 7.5, 90, { type: 'window-sm' });
-  item('garage-door', 48.6, 24, { rot: 0, lift: -1 });
-  item('garage-door', 61.2, 24, { rot: 0, lift: -1 });
-  door(42, 17.5, 90, { type: 'door-ext', lift: -0.4, label: 'Garage Entry' });
-  door(47, -3.5, 0, { type: 'door-ext', lift: -1, label: 'Garage Rear Door' });
-  win(60, -3.5, 0, { lift: 2.5 }); win(67.75, 10, 90, { lift: 2.5 });
+  door(DOOR_X, yF, 0, { type: 'door-ext', color: '#d9b44a', label: 'Front Door' });
+  win(3.6, yF, 0); win(8.6, yF, 0); win(27.6, yF, 0);
+  win(xL, 2.2, 90, { lift: 3.5, height: 3.6, w: 2.4 }); win(xL, 5.6, 90, { lift: 3.5, height: 3.6 }); win(xL, 9.0, 90, { lift: 3.5, height: 3.6, w: 2.4 });
+  win(18.6, yB, 0, { w: 3.6, lift: 3.7, height: 3.4, label: 'Window over sink' });
+  win(22.7, yB, 0, { type: 'window-sm', lift: 4.3, w: 2 });
+  win(30.2, yB, 0, { type: 'window-sm', lift: 4.5, w: 2.4, grid: false });
+  win(xR, 14.4, 90, { w: 2.6 }); win(xR, 20.4, 90, { w: 2.6 });
+  item('arch', 7.2, yB, { rot: 0, w: 7, height: 7, label: 'Opening to dining' });
+  const dyO = dy0o + EXT / 2, dxO = dx1o - EXT / 2;
+  win(xL, -4.4, 90, { w: 3.2, lift: 2.4, height: 5 }); win(xL, -10, 90, { w: 3.2, lift: 2.4, height: 5 });
+  win(3.6, dyO, 0, { w: 3, lift: 2.4, height: 5 }); win(7.21, dyO, 0, { w: 3, lift: 2.4, height: 5 }); win(10.8, dyO, 0, { w: 3, lift: 2.4, height: 5 });
+  item('sliding-door', dxO, -4.8, { rot: 90, w: 6 });
+  win(dxO, -11, 90, { w: 3, lift: 2.4, height: 5 });
+  door(29, yBath, 0, { open: 75 });                                         // bath
+  door(18.08, yRow, 0, { open: 0, label: 'Basement Door' });
+  door(30.4, yRow, 0, { open: 80, rot: 180 });                              // bedroom
+  item('door-double', xBedW, 15.8, { rot: 90, w: 3.6, label: 'Closet Doors' });
+  door(35.6, yRow + INT / 2 + 0.01, 0, { type: 'door-ext', label: 'Side Door' });
+  win(BUMP.x1 + EXT / 2, 6.6, 90, { type: 'window-sm' });
+  item('garage-door', GAR.x0 + 6.4, gy1, { rot: 0, lift: -1 });
+  item('garage-door', GAR.x0 + 19.35, gy1, { rot: 0, lift: -1 });
+  door(gx0, 17.5, 90, { type: 'door-ext', lift: -0.4, label: 'Garage Entry' });
+  door(GAR.x0 + 5, gy0, 0, { type: 'door-ext', lift: -1, label: 'Garage Rear Door' });
+  win(GAR.x0 + 17, gy0, 0, { lift: 2.5 }); win(gx1, 10, 90, { lift: 2.5 });
 
-  // Stairs: main flight climbs from the foyer toward the rear; basement flight descends beneath it
-  item('stairs', 18, 17, { w: 3, d: 8.5, height: 9, rot: 0 });
-  item('stairs-down', 18, 17, { w: 3, d: 8.5, height: 8, rot: 0, rails: [] });
+  // Stairs: main flight climbs from the living-room end toward the rear and lands in the upstairs
+  // hall at y = 13.58; the basement flight (8" risers, 9" treads) descends beneath it.
+  const S = { x: 18.08, top: 13.58, bottom: 22.2 };
+  item('stairs', S.x, (S.top + S.bottom) / 2, { w: 3, d: S.bottom - S.top, height: 9, rot: 0 });
+  item('stairs-down', S.x, (12.6 + 21.6) / 2, { w: 3, d: 9, height: 8, rot: 0, rails: [] });
 
-  // Living room
-  item('fireplace', 0.8, 17.25, { rot: -90, w: 5.5, height: 8 });
-  item('chimney', -1.25, 17.25, { rot: 90, lift: GROUND, height: 25.5 });
-  item('builtins', 0.7, 13.2, { rot: -90, w: 2.8 });
-  item('builtins', 0.7, 21.3, { rot: -90, w: 2.8 });
-  item('tv', 1.75, 17.25, { rot: -90, w: 4.6, lift: 4.7 });
-  item('rug-8x10', 8, 17.4, { rot: 90, color: '#a7836a' });
-  item('sofa-l', 8.4, 18.6, { rot: 180, w: 10, d: 8 });
+  // Living room (clear 0..16.39 × 11.63..23.04; 19'7" incl. the stair)
+  item('fireplace', 0.8, 17.4, { rot: -90, w: 5.5, height: 8 });
+  item('chimney', OUT.x0 - 1.25, 17.4, { rot: 90, lift: GROUND, height: 26 });
+  item('builtins', 0.7, 13.3, { rot: -90, w: 3 });
+  item('builtins', 0.7, 21.5, { rot: -90, w: 3 });
+  item('tv', 1.75, 17.4, { rot: -90, w: 4.6, lift: 4.7 });
+  item('rug-8x10', 8.2, 17.6, { rot: 90, color: '#a7836a' });
+  item('sofa-l', 8.2, 18.7, { rot: 180, w: 9.6, d: 8 });
   item('recliner', 5, 13.9, { rot: -60 });
-  item('ottoman', 7.6, 17, { label: 'Storage Ottoman', w: 2.6, d: 2.2 });
-  item('side-table', 2.6, 22, {});
-  item('floor-lamp', 14.6, 21.9, {});
-  item('curtains', 4.2, 22.6, { color: '#8ba0b8' });
-  item('curtains', 10.6, 22.6, { color: '#8ba0b8' });
-  item('ceiling-light', 8.2, 17.2, {});
+  item('ottoman', 7.6, 17.2, { label: 'Storage Ottoman', w: 2.6, d: 2.2 });
+  item('side-table', 2.7, 22.2, {});
+  item('floor-lamp', 15.6, 14, {});
+  item('curtains', 3.6, 22.8, { color: '#8ba0b8' });
+  item('curtains', 8.6, 22.8, { color: '#8ba0b8' });
+  item('ceiling-light', 8.4, 17.3, {});
 
-  // Kitchen
-  item('fridge', 11.0, 1.35, { rot: 0 });
-  item('counter', 14.15, 1.05, { w: 3.2 });
-  item('counter', 16.25, 1.05, { w: 1 });
+  // Kitchen (clear 9.08..25.08 × 0..11.25)
+  item('fridge', 10.6, 1.35, { rot: 0 });
+  item('counter', 13.75, 1.05, { w: 3.3 });
+  item('counter', 15.9, 1.05, { w: 1 });
   item('sink-cab', 18.6, 1.05, { w: 3.6 });
   item('dishwasher', 21.4, 1.05);
-  item('counter', 23.6, 1.05, { w: 2.4 });
-  item('counter', 23.95, 3.15, { rot: 90, w: 2.1, label: 'Corner Counter' });
-  item('stove', 23.9, 5.45, { rot: 90 });
-  item('counter', 23.95, 7.5, { rot: 90, w: 1.6 });
-  item('range-hood', 24.15, 5.45, { rot: 90 });
-  item('upper-cab-glass', 14.5, 0.55, { w: 3 });
-  item('upper-cab', 16.2, 0.55, { w: 0.6, height: 2.7 });
+  item('counter', 23.75, 1.05, { w: 2.66 });
+  item('counter', 24.03, 3.15, { rot: 90, w: 2.1, label: 'Corner Counter' });
+  item('stove', 23.98, 5.45, { rot: 90 });
+  item('counter', 24.03, 7.5, { rot: 90, w: 1.6 });
+  item('range-hood', 24.23, 5.45, { rot: 90 });
+  item('upper-cab-glass', 14.1, 0.55, { w: 3 });
+  item('upper-cab', 15.9, 0.55, { w: 0.6, height: 2.7 });
   item('upper-cab-glass', 22.4, 0.55, { w: 2.4 });
-  item('upper-cab', 24.45, 2.8, { rot: 90, w: 1.4 });
-  item('kitchen-island', 17.2, 6.4, { rot: 180, w: 6.5, d: 3.8 });
-  item('bar-stool', 15.3, 8.9, { rot: 180 });
-  item('bar-stool', 17.2, 8.9, { rot: 180 });
-  item('bar-stool', 19.1, 8.9, { rot: 180 });
-  item('pendant', 15.6, 6.4, {}); item('pendant', 18.8, 6.4, {});
-  item('builtin-desk', 1.05, 5.4, { rot: -90, w: 9.4, d: 2 });
+  item('upper-cab', 24.53, 2.8, { rot: 90, w: 1.4 });
+  item('kitchen-island', 17.4, 6.5, { rot: 180, w: 6.5, d: 3.8 });
+  item('bar-stool', 15.5, 9.0, { rot: 180 });
+  item('bar-stool', 17.4, 9.0, { rot: 180 });
+  item('bar-stool', 19.3, 9.0, { rot: 180 });
+  item('pendant', 15.8, 6.5, {}); item('pendant', 19.0, 6.5, {});
+  item('builtin-desk', 1.0, 5.6, { rot: -90, w: 9.4, d: 2 });
   item('upper-cab', 0.55, 1.2, { rot: -90, w: 1.4, height: 3, lift: 4.3, label: 'Open Shelf' });
-  item('upper-cab', 0.55, 9.6, { rot: -90, w: 1.4, height: 3, lift: 4.3, label: 'Open Shelf' });
-  item('bar-stool', 2.8, 3.6, { rot: 90, height: 2.8 });
-  item('bar-stool', 2.8, 7.2, { rot: 90, height: 2.8 });
-  item('plant-sm', 6.5, 10.8, {});
+  item('upper-cab', 0.55, 10.0, { rot: -90, w: 1.4, height: 3, lift: 4.3, label: 'Open Shelf' });
+  item('bar-stool', 2.8, 3.8, { rot: 90, height: 2.8 });
+  item('bar-stool', 2.8, 7.4, { rot: 90, height: 2.8 });
+  item('plant-sm', 6.6, 10.6, {});
   item('ceiling-light', 4.5, 5.6, {});
 
-  // Dining room
-  item('rug-8x10', 7.2, -6.8, { color: '#b5aca0' });
-  item('dining-6', 7.2, -6.8, { rot: 90, w: 6, d: 3.6 });
+  // Dining room (clear 0..14.42 × −13.92..−0.5), vaulted
+  const dcy = (dyO + EXT / 2 + yB - EXT / 2) / 2;
+  item('rug-8x10', 7.21, dcy, { color: '#b5aca0' });
+  item('dining-6', 7.21, dcy, { rot: 90, w: 6, d: 3.6 });
   for (const [dx, dy, r] of [[-1.15, -1.8, 90], [-1.15, 0, 90], [-1.15, 1.8, 90], [1.15, -1.8, -90], [1.15, 0, -90], [1.15, 1.8, -90]])
-    item('dining-chair', 7.2 + dx * 2, -6.8 + dy, { rot: r });
-  item('hutch', 0.95, -8.6, { rot: -90, w: 4.2 });
-  item('cube-shelf', 0.75, -2.6, { rot: -90, w: 3.4, height: 2.4 });
-  item('sideboard', 7.2, -12.6, { label: 'Window Bench Table', w: 3.4, d: 1.3, height: 2.6, color: '#5a3a22' });
-  item('plant-lg', 12.8, -12.2, { color: '#3e7d3a', height: 5.5 });
-  item('plant-sm', 1.4, -12.3, {});
-  item('pendant', 7.2, -6.8, { lift: 5.8, w: 1.4, height: 1.2, ceil: 11, label: 'Chandelier' });
+    item('dining-chair', 7.21 + dx * 2, dcy + dy, { rot: r });
+  item('hutch', 0.9, dcy - 2.2, { rot: -90, w: 4.2 });
+  item('cube-shelf', 0.7, -2.8, { rot: -90, w: 3.4, height: 2.4 });
+  item('sideboard', 7.21, dyO + 0.9, { label: 'Window Bench Table', w: 3.4, d: 1.3, height: 2.6, color: '#5a3a22' });
+  item('plant-lg', 13.4, dyO + 0.9, { color: '#3e7d3a', height: 5.5 });
+  item('plant-sm', 1.0, dyO + 0.9, {});
+  item('pendant', 7.21, dcy, { lift: 5.8, w: 1.4, height: 1.2, ceil: 11, label: 'Chandelier' });
 
-  // 1st floor bedroom
-  item('rug-5x8', 27.5, 17.5, { rot: 90, color: '#5f8a8a' });
-  item('bed-queen', 28.8, 17.5, { rot: 90, color: '#4f6a4f', pattern: 'floral', color2: '#f3f1ec' });
-  item('nightstand-w', 31.3, 14.0, { rot: 90 });
-  item('nightstand-w', 31.3, 21.0, { rot: 90 });
-  item('dresser-w', 27, 22.1, { rot: 180, w: 2.6, d: 1.6, height: 3.8, label: 'Chest of Drawers' });
-  item('bench-foot', 24.9, 17.5, { rot: 90, label: 'Cedar Chest', color: '#8a5a3a', color2: '#8a5a3a', w: 3, d: 1.5 });
-  item('wall-art', 28.8, 11.75, { rot: 0, w: 3, height: 1.4, color: '#7a9bb8' });
-  item('ceiling-light', 27, 17.2, {});
+  // 1st floor bedroom (clear 22.33..32.88 × 11.63..23.04)
+  item('rug-5x8', 28.2, 17.3, { rot: 90, color: '#5f8a8a' });
+  item('bed-queen', 29.38, 17.3, { rot: 90, color: '#4f6a4f', pattern: 'floral', color2: '#f3f1ec' });
+  item('nightstand-w', 31.98, 13.9, { rot: 90 });
+  item('nightstand-w', 31.98, 20.7, { rot: 90 });
+  item('dresser-w', 27.2, 22.2, { rot: 180, w: 2.6, d: 1.6, height: 3.8, label: 'Chest of Drawers' });
+  item('bench-foot', 25.2, 17.3, { rot: 90, label: 'Cedar Chest', color: '#8a5a3a', color2: '#8a5a3a', w: 3, d: 1.5 });
+  item('wall-art', 27.4, 11.7, { rot: 0, w: 3, height: 1.4, color: '#7a9bb8' });
+  item('ceiling-light', 27.6, 17.3, {});
 
-  // Bath (1st)
-  item('bathtub', 29.6, 1.35, { color: '#f2f2f0' });
-  item('toilet', 31.0, 4.6, { rot: 90 });
-  item('vanity', 25.95, 4.4, { rot: -90, w: 3.4, d: 1.8 });
-  item('mirror', 25.3, 4.4, { rot: -90, w: 3, height: 2.6 });
+  // Bath (clear 25.46..32.88 × 0..7.83)
+  item('bathtub', 30.38, 1.3, { color: '#f2f2f0' });
+  item('toilet', 31.68, 4.7, { rot: 90 });
+  item('vanity', 26.36, 4.5, { rot: -90, w: 3.4, d: 1.8 });
+  item('mirror', 25.54, 4.5, { rot: -90, w: 3, height: 2.6 });
 
-  // Mudroom / hall
-  item('bench-foot', 35.6, 7.4, { rot: 90, w: 3.5, label: 'Mudroom Bench', color: '#6f8296', color2: '#f3f1ec' });
-  item('ceiling-light', 28.6, 9.6, {});
+  // Hall / mudroom
+  item('bench-foot', BUMP.x1 - 0.8, 6.8, { rot: 90, w: 3.5, label: 'Mudroom Bench', color: '#6f8296', color2: '#f3f1ec' });
+  item('ceiling-light', 29.2, 9.7, {});
 
-  // Garage
-  item('lawn-tractor', 63.5, 4, { rot: 180 });
-  item('metal-shelf', 45, -2.6, {});
-  item('metal-shelf', 66.8, 17, { rot: -90 });
-  item('workbench', 55, -2.3, { w: 7 });
-  item('fridge', 50, -2.1, { label: 'Garage Fridge' });
-  item('trash-bin', 43.3, 2, { rot: -90 });
-  item('trash-bin', 43.3, 4.5, { rot: -90, color: '#2f5ea8', label: 'Recycling' });
+  // Garage (clear GAR.x0.. × −3.25..24.25)
+  item('lawn-tractor', GAR.x0 + 21, 4, { rot: 180 });
+  item('metal-shelf', GAR.x0 + 2.2, gy0 + 1, {});
+  item('metal-shelf', gx1 - 1, 17, { rot: -90 });
+  item('workbench', GAR.x0 + 12, gy0 + 1.5, { w: 7 });
+  item('fridge', GAR.x0 + 6.6, gy0 + 1.6, { label: 'Garage Fridge' });
+  item('trash-bin', GAR.x0 + 1.2, 2, { rot: -90 });
+  item('trash-bin', GAR.x0 + 1.2, 4.5, { rot: -90, color: '#2f5ea8', label: 'Recycling' });
 
   // Covered porch / decks
-  item('post', 32.9, 23.1, {}); item('post', 41.4, 23.1, {});
-  item('lantern', 37, 17.5, { lift: 6.3, ceil: 9.5 });
-  item('steps', 37, 24.8, { w: 5, d: 2.5, height: 0.85, rot: 0, lift: GROUND });
-  item('steps', 18, 24.3, { w: 4.5, d: 2.5, height: 1.25, rot: 0, lift: GROUND, color: '#9a5a44', label: 'Front Steps' });
-  item('planter', 33.6, 20.5, {}); item('planter-box', 39.6, 14, { rot: -90 });
-  item('patio-table', 19.5, -6.2, { umbrella: 'closed', w: 4, d: 3 });
-  for (const [dx, dy, r] of [[-1.6, -2, 0], [1.6, -2, 0], [-1.6, 2, 180], [1.6, 2, 180]]) item('patio-chair', 19.5 + dx, -6.2 + dy, { rot: r, color2: '#9aa0a8' });
-  item('grill', 26.5, -1.8, { rot: 0 });
-  item('fire-table', 33.5, -9, {});
-  item('lounge-chair', 33.5, -11.6, { rot: 0 }); item('lounge-chair', 33.5, -6.4, { rot: 180 });
-  item('lounge-chair', 30.8, -9, { rot: -90 }); item('lounge-chair', 36.2, -9, { rot: 90 });
-  item('planter', 39.5, -15.5, {}); item('planter', 15.5, -15.8, { color: '#c0392b' });
-  item('steps', 28, -18.5, { w: 5, d: 2.5, height: 0.75, rot: 180, lift: GROUND });
+  const pcx = (OUT.x1 + GAR.x0 - EXT) / 2;
+  item('post', OUT.x1 + 0.5, 23.4, {}); item('post', GAR.x0 - EXT - 0.5, 23.4, {});
+  item('lantern', pcx, 17.5, { lift: 6.3, ceil: 9.5 });
+  item('steps', pcx, 25.0, { w: 5, d: 2.5, height: 0.85, rot: 0, lift: GROUND });
+  item('steps', DOOR_X, OUT.y1 + 1.2, { w: 4.5, d: 2.4, height: 1.25, rot: 0, lift: GROUND, color: '#9a5a44', label: 'Front Steps' });
+  item('planter', OUT.x1 + 0.9, 21, {}); item('planter-box', GAR.x0 - EXT - 0.9, 14, { rot: -90 });
+  item('patio-table', 19.9, -6.4, { umbrella: 'closed', w: 4, d: 3 });
+  for (const [dx, dy, r] of [[-1.6, -2, 0], [1.6, -2, 0], [-1.6, 2, 180], [1.6, 2, 180]]) item('patio-chair', 19.9 + dx, -6.4 + dy, { rot: r, color2: '#9aa0a8' });
+  item('grill', 27, -2.0, { rot: 0 });
+  item('fire-table', 34, -9.2, {});
+  item('lounge-chair', 34, -11.8, { rot: 0 }); item('lounge-chair', 34, -6.6, { rot: 180 });
+  item('lounge-chair', 31.3, -9.2, { rot: -90 }); item('lounge-chair', 36.7, -9.2, { rot: 90 });
+  item('planter', 40.5, -16.4, {}); item('planter', 16, -16.6, { color: '#c0392b' });
+  item('steps', 28.6, -EXT - 17.25 - 1.25, { w: 5, d: 2.5, height: 0.75, rot: 180, lift: GROUND });
 
   // Yard & landscaping
-  item('bulkhead', -3.1, -8, { rot: 90, lift: GROUND });
+  item('bulkhead', OUT.x0 - 2.7, -9, { rot: 90, lift: GROUND });
   item('shed', 22, -64, { rot: 0 });
   item('kayak', 28.5, -63, { rot: 10 });
   item('fire-pit', 4, -40, {});
-  for (const [x, y] of [[1, 24.6], [5, 24.8], [12.5, 24.8], [14.8, 24.6], [23, 24.7], [29, 24.8]]) item('shrub', x, y, {});
-  item('hydrangea', 8.6, 25, {}); item('hydrangea', 26, 25, { color2: '#e07a3a' });
-  for (const [x, y] of [[3, 26.2], [7, 26.4], [11, 26.2], [24.5, 26.2], [28.5, 26.4]]) item('hosta', x, y, {});
-  for (let x = 0.5; x < 31; x += 1.6) item('boulder', x, 27.1, { w: 1, d: 0.8, height: 0.5 });
-  item('mailbox', 39, 80, {});
-  item('lamp-post', 15, 29, {});
+  for (const x of [0.8, 4.6, 9.4, 19.4, 23.4, 29.6]) item('shrub', x, OUT.y1 + 1.2, {});
+  item('hydrangea', 7.0, OUT.y1 + 1.5, {}); item('hydrangea', 26.2, OUT.y1 + 1.5, { color2: '#e07a3a' });
+  for (const x of [2.6, 6.2, 10.4, 20.4, 25, 31]) item('hosta', x, OUT.y1 + 2.7, {});
+  for (let x = 0.5; x < 32; x += 1.6) if (Math.abs(x - DOOR_X) > 2.6) item('boulder', x, OUT.y1 + 3.6, { w: 1, d: 0.8, height: 0.5 });
+  item('mailbox', GAR.x0 - 4, 80, {});
+  item('lamp-post', DOOR_X - 3, 30, {});
   const trees = [
-    ['tree', -28, 40], ['tree-birch', -18, 18], ['tree', 95, 60], ['tree-pine', 92, 10], ['tree', 88, -30], ['tree-pine', 100, -58],
+    ['tree', -28, 40], ['tree-birch', -18, 18], ['tree', 97, 60], ['tree-pine', 94, 10], ['tree', 90, -30], ['tree-pine', 102, -58],
     ['tree', -38, -10], ['tree-pine', -42, -45], ['tree', -30, -75], ['tree', -8, -92], ['tree-birch', 10, -88], ['tree', 34, -95],
     ['tree-pine', 52, -88], ['tree', 70, -92], ['tree', 86, -82], ['tree-birch', 60, -66], ['tree', 45, -70], ['tree-birch', -12, -60],
-    ['tree', 105, 30], ['tree-pine', -50, 70], ['tree', 115, -10],
+    ['tree', 107, 30], ['tree-pine', -50, 70], ['tree', 117, -10],
   ];
   for (const [t, x, y] of trees) item(t, x, y, { rot: (x * 37 + y * 11) % 360 });
   item('fence', 30, -104, { w: 120 });
 
-  // ═══ 2ND FLOOR (rear shed dormer, front roof slope = knee wall at 20.2') ═════
+  // ═══ 2ND FLOOR — rear shed dormer, front roof slope over a 5' knee wall ══════
+  // Clear interior runs between the gable inner faces (x −0.1 … 32.98) and from the dormer face
+  // (y 3.37) to the knee wall (y 20.79): 17'5" deep, matching the bedroom.
   on(2);
-  room('Primary Bedroom', 0.4, 7.75, 13.1, 12.45, { wall: '#c8cbcd', color: '#3b82f6', ceiling: false });
-  room('W.I.C.', 0.4, 2.5, 8.5, 5.25, { wall: '#c8cbcd', color: '#8b5cf6', ceiling: false });
-  room('Laundry', 8.9, 2.5, 3.5, 5.25, { floor: 'tile', floorColor: '#8d8c88', wall: '#e9e6dc', color: '#06b6d4', ceiling: false });
-  room('Linen', 12.4, 2.5, 1.1, 5.25, { wall: '#ecebe6', color: '#64748b', ceiling: false });
-  room('Bath', 13.5, 2.5, 6.25, 6.75, { floor: 'tile', floorColor: '#9b9b98', wall: '#bfe0e0', color: '#06b6d4', ceiling: false });
-  room('Hall', 13.5, 9.25, 6.25, 3.25, { wall: '#ecebe6', color: '#94a3b8', ceiling: false });
-  room('Storage', 13.5, 12.5, 3, 7.7, { wall: '#ecebe6', color: '#64748b', ceiling: false });
-  room('Bedroom', 19.75, 2.5, 11.85, 17.7, { wall: '#5f6b7f', color: '#ec4899', ceiling: false });
+  const gx0i = OUT.x0 + 0.4, gx1i = OUT.x1 - 0.4;          // gable inner faces
+  const yKnee = 20.79, yDorm = yKnee - 17.42;                // inner faces
+  const yKw = yKnee + INT / 2, yDw = yDorm - EXT / 2;          // centrelines
+  const xP = gx0i + 13.83 + INT / 2;                          // primary 13'10"
+  const xB2 = xP + INT / 2 + 6.25 + INT / 2;                  // bath/hall 6'3", bedroom 12'2"
+  const yWic = yDorm + 4.92 + INT / 2;                        // WIC/laundry 4'11"
+  const xWic = gx0i + 8.42 + INT / 2, xLau = xWic + INT / 2 + 3.5 + INT / 2;
+  const yBa2 = yDorm + 6.75 + INT / 2, yHall = S.top;         // bath 6'9", hall to the stair head
+  room('Primary Bedroom', gx0i, yWic, xP - gx0i, yKw - yWic, { wall: '#c8cbcd', color: '#3b82f6', ceiling: false });
+  room('W.I.C.', gx0i, yDw, xWic - gx0i, yWic - yDw, { wall: '#c8cbcd', color: '#8b5cf6', ceiling: false });
+  room('Laundry', xWic, yDw, xLau - xWic, yWic - yDw, { floor: 'tile', floorColor: '#8d8c88', wall: '#e9e6dc', color: '#06b6d4', ceiling: false });
+  room('Linen', xLau, yDw, xP - xLau, yWic - yDw, { wall: '#ecebe6', color: '#64748b', ceiling: false });
+  room('Bath', xP, yDw, xB2 - xP, yBa2 - yDw, { floor: 'tile', floorColor: '#9b9b98', wall: '#bfe0e0', color: '#06b6d4', ceiling: false });
+  room('Hall', xP, yBa2, xB2 - xP, yHall - yBa2, { wall: '#ecebe6', color: '#94a3b8', ceiling: false });
+  room('Storage', xP, yHall, xStairL - xP, yKw - yHall, { wall: '#ecebe6', color: '#64748b', ceiling: false });
+  room('Stair Landing', xStairL, yHall, xB2 - xStairL, yKw - yHall, { wall: '#ecebe6', color: '#94a3b8', ceiling: false });
+  room('Bedroom', xB2, yDw, gx1i - xB2, yKw - yDw, { wall: '#5f6b7f', color: '#ec4899', ceiling: false });
 
-  wall(31.95, 2.5, 0.3, 2.5, { ext: true, h: 8.5, t: 0.5 });              // rear dormer face
-  wall(0, 20.2, 32.25, 20.2, { h: 5 });                                    // front knee wall
-  wall(0.4, 7.75, 13.5, 7.75);
-  wall(8.9, 2.5, 8.9, 7.75);
-  wall(12.4, 2.5, 12.4, 7.75);
-  wall(13.5, 2.5, 13.5, 20.2);
-  wall(13.5, 9.25, 19.75, 9.25);
-  wall(19.75, 2.5, 19.75, 20.2);
-  wall(13.5, 12.5, 16.5, 12.5);
-  wall(16.5, 12.5, 16.5, 20.2);
+  wall(gx1i, yDw, gx0i, yDw, { ext: true, h: 8.5, t: EXT });               // rear dormer face
+  wall(gx0i, yKw, gx1i, yKw, { h: 5, t: INT });                            // front knee wall
+  wall(gx0i, yWic, xP, yWic, P);
+  wall(xWic, yDw, xWic, yWic, P);
+  wall(xLau, yDw, xLau, yWic, P);
+  wall(xP, yDw, xP, yKw, P);
+  wall(xP, yBa2, xB2, yBa2, P);
+  wall(xB2, yDw, xB2, yKw, P);
+  wall(xP, yHall, xStairL, yHall, P);
+  wall(xStairL, yHall, xStairL, yKw, P);
 
-  item('stair-opening', 18.1, 16.6, { w: 3.2, d: 7.2, rails: [] });
-  item('door-double', 4.6, 7.75, { rot: 0, w: 4, label: 'W.I.C. Doors' });
-  item('door-double', 10.65, 7.75, { rot: 0, w: 3, label: 'Laundry Doors' });
-  door(13.5, 11, 90, { open: 75 });
-  door(15.2, 9.25, 0, { open: 70, w: 2.4, rot: 180 });
-  door(19.75, 11, 90, { open: 75, rot: -90 });
-  win(4.5, 2.5, 0, { type: 'window-sm', lift: 3.6 });
-  win(16.6, 2.5, 0, { type: 'window-sm', lift: 4.2, w: 2, grid: false });
-  win(26, 2.5, 0, { lift: 2.8, w: 2.8, height: 4 });
-  win(0.2, 17.2, 90, { w: 2.6, height: 3.6, lift: 2.8 });
-  win(32.05, 6.5, 90, { w: 2.6, height: 3.6, lift: 2.8 });
+  item('stair-opening', S.x, (yHall + yKnee) / 2, { w: 3, d: yKnee - yHall, rails: ['right'] });
+  item('door-double', gx0i + 4.4, yWic, { rot: 0, w: 4, label: 'W.I.C. Doors' });
+  item('door-double', (xWic + xLau) / 2, yWic, { rot: 0, w: 3, label: 'Laundry Doors' });
+  door(xP, 12.0, 90, { open: 75 });
+  door(xP + 1.7, yBa2, 0, { open: 70, w: 2.4, rot: 180 });
+  door(xB2, 12.0, 90, { open: 75, rot: -90 });
+  win(4.4, yDw, 0, { type: 'window-sm', lift: 3.6 });
+  win(xP + 3.4, yDw, 0, { type: 'window-sm', lift: 4.2, w: 2, grid: false });
+  win(26.6, yDw, 0, { lift: 2.8, w: 2.8, height: 4 });
+  win(OUT.x0 + 0.2, 17.6, 90, { w: 2.6, height: 3.6, lift: 2.8 });
+  win(OUT.x1 - 0.2, 7.2, 90, { w: 2.6, height: 3.6, lift: 2.8 });
 
-  // Primary bedroom
-  item('rug-8x10', 6.2, 14, { rot: 90, color: '#9aa4b0' });
-  item('bed-queen', 4.1, 14, { rot: -90, color: '#24438a', color2: '#f0eee8', pattern: 'solid', headboard: 3.4 });
-  item('nightstand-w', 1.2, 10.7, { rot: -90, color: '#6b4a2f' });
-  item('nightstand-w', 1.2, 17.3, { rot: -90, color: '#6b4a2f' });
-  item('table-lamp', 1.2, 10.7, { lift: 2.1, color: '#4f8fa0' }); item('table-lamp', 1.2, 17.3, { lift: 2.1, color: '#4f8fa0' });
-  item('fireplace-tv', 12.65, 13.6, { rot: 90, w: 4.5 });
-  item('tv', 12.6, 13.6, { rot: 90, w: 4.2, lift: 2.6 });
-  item('bench-foot', 8.7, 14, { rot: 90, w: 4, label: 'Upholstered Bench', color: '#6f7378', color2: '#2b2b2e' });
-  item('mirror-floor', 10.5, 19.4, { rot: 180 });
-  item('ceiling-light', 7, 12, {});
-  item('closet-sys', 4.65, 3.6, { w: 8.2, d: 2 });
-  item('closet-sys', 1.4, 5.8, { rot: -90, w: 2.4, d: 1.6, height: 7 });
-  item('washer-stack', 10.65, 3.9, {});
-  item('closet-sys', 12.95, 4.9, { rot: -90, w: 4.6, d: 0.9, label: 'Linen Shelves', height: 7 });
+  // Primary bedroom (clear −0.1..13.73 × 8.67..20.79)
+  const pcy = (yWic + yKnee) / 2 + 0.1;
+  item('rug-8x10', 6.6, pcy, { rot: 90, color: '#9aa4b0' });
+  item('bed-queen', gx0i + 3.6, pcy, { rot: -90, color: '#24438a', color2: '#f0eee8', pattern: 'solid', headboard: 3.4 });
+  item('nightstand-w', gx0i + 0.75, pcy - 3.4, { rot: -90, color: '#6b4a2f' });
+  item('nightstand-w', gx0i + 0.75, pcy + 3.4, { rot: -90, color: '#6b4a2f' });
+  item('table-lamp', gx0i + 0.75, pcy - 3.4, { lift: 2.1, color: '#4f8fa0' }); item('table-lamp', gx0i + 0.75, pcy + 3.4, { lift: 2.1, color: '#4f8fa0' });
+  item('fireplace-tv', xP - INT / 2 - 0.8, pcy - 0.4, { rot: 90, w: 4.5 });
+  item('tv', xP - INT / 2 - 0.85, pcy - 0.4, { rot: 90, w: 4.2, lift: 2.6 });
+  item('bench-foot', gx0i + 8.2, pcy, { rot: 90, w: 4, label: 'Upholstered Bench', color: '#6f7378', color2: '#2b2b2e' });
+  item('mirror-floor', 11.2, yKnee - 0.6, { rot: 180 });
+  item('ceiling-light', 7, 12.5, {});
+  item('closet-sys', gx0i + 4.2, yDorm + 1.0, { w: 8.2, d: 2 });
+  item('closet-sys', gx0i + 0.8, yDorm + 3.0, { rot: -90, w: 2.2, d: 1.6, height: 7 });
+  item('washer-stack', (xWic + xLau) / 2, yDorm + 1.35, {});
+  item('closet-sys', (xLau + xP) / 2, (yDorm + yWic) / 2, { rot: -90, w: 4.4, d: 0.9, label: 'Linen Shelves', height: 7 });
 
-  // Bath (2nd)
-  item('shower', 15.1, 4.3, { w: 3.2, d: 3.6 });
-  item('toilet', 18.5, 3.8, { rot: 90 });
-  item('vanity-w', 18.6, 8.3, { rot: 180, w: 2.3 });
-  item('mirror', 18.6, 9.0, { rot: 180, w: 2, height: 2.6, color: '#f3f1ec' });
+  // Bath (2nd) (clear 14.11..20.36 × 3.37..10.12)
+  item('shower', xP + INT / 2 + 1.6, yDorm + 1.8, { w: 3.2, d: 3.6 });
+  item('toilet', xB2 - INT / 2 - 1.2, yDorm + 1.2, { rot: 90 });
+  item('vanity-w', xB2 - INT / 2 - 1.2, yBa2 - INT / 2 - 0.85, { rot: 180, w: 2.3 });
+  item('mirror', xB2 - INT / 2 - 1.2, yBa2 - INT / 2 - 0.1, { rot: 180, w: 2, height: 2.6, color: '#f3f1ec' });
 
-  // Bedroom 2
-  item('rug-5x8', 26.5, 11.5, { rot: 90, color: '#a98d6b' });
-  item('bed-queen', 28.1, 11.5, { rot: 90, color: '#2f5aa8', pattern: 'stripes' });
-  item('nightstand', 31.0, 8.1, { rot: 90 }); item('nightstand', 31.0, 14.9, { rot: 90, w: 2.2 });
-  item('table-lamp', 31.0, 14.9, { lift: 2.2, color: '#dfe6ea' });
-  item('dresser', 24.5, 3.4, { w: 5.5 });
-  item('chest', 30.4, 18.5, { rot: 180, w: 2.8 });
-  item('antique-desk', 21.05, 15, { rot: -90 });
-  item('office-chair', 22.9, 15, { rot: 90 });
-  item('dining-chair', 22.6, 18.6, { rot: 135, label: 'Windsor Chair', color: '#b07a40', color2: '#1f2933' });
-  item('plant-sm', 25.2, 3.1, { lift: 3 });
-  item('ceiling-light', 25.5, 9.5, {});
+  // Bedroom 2 (clear 20.73..32.98 × 3.37..20.79)
+  const b2cy = 12.2;
+  item('rug-5x8', 27.6, b2cy, { rot: 90, color: '#a98d6b' });
+  item('bed-queen', gx1i - 3.6, b2cy, { rot: 90, color: '#2f5aa8', pattern: 'stripes' });
+  item('nightstand', gx1i - 0.75, b2cy - 3.6, { rot: 90 }); item('nightstand', gx1i - 0.75, b2cy + 3.6, { rot: 90, w: 2.2 });
+  item('table-lamp', gx1i - 0.75, b2cy + 3.6, { lift: 2.2, color: '#dfe6ea' });
+  item('dresser', 25.2, yDorm + 0.85, { w: 5.5 });
+  item('chest', 31.2, yKnee - 0.9, { rot: 180, w: 2.8 });
+  item('antique-desk', xB2 + INT / 2 + 1.05, 16.2, { rot: -90 });
+  item('office-chair', xB2 + INT / 2 + 2.9, 16.2, { rot: 90 });
+  item('dining-chair', 24.2, 19.4, { rot: 135, label: 'Windsor Chair', color: '#b07a40', color2: '#1f2933' });
+  item('plant-sm', 25.8, yDorm + 0.6, { lift: 3 });
+  item('ceiling-light', 26.4, 10.5, {});
 
   // ═══ ROOFS ════════════════════════════════════════════════════════════════
-  // Main Cape: 12/12 gable, ridge along x, full-width shed dormer on the rear.
-  roof({ name: 'Main roof', x: 0, y: 0, w: 32.25, d: 23, axis: 'x', eave: 10.5, ridge: 22.75,
-    dormer: { x0: 0.3, x1: 31.95, wallY: 2.5, top: 17.5 }, ceilingAt: 17 });
-  roof({ name: 'Dining roof', x: 0, y: -13.4, w: 14.4, d: 13.4, axis: 'y', eave: 9, ridge: 12.8, noGable: ['s'] });
-  roof({ name: 'Porch roof', x: 32.25, y: 3.5, w: 9.75, d: 20, axis: 'y', eave: 8.25, ridge: 12, noGable: ['n'] });
-  roof({ name: 'Garage roof', x: 42, y: -3.5, w: 25.75, d: 27.5, axis: 'y', eave: 8.5, ridge: 16.5 });
+  // Main Cape: 12/12 gable over the outer faces, ridge along x, full-width rear shed dormer.
+  const mainRidge = 10.5 + (OUT.y1 - OUT.y0) / 2 + 0.75;
+  roof({ name: 'Main roof', x: OUT.x0, y: OUT.y0, w: OUT.x1 - OUT.x0, d: OUT.y1 - OUT.y0, axis: 'x', eave: 10.5, ridge: mainRidge,
+    dormer: { x0: gx0i, x1: gx1i, wallY: yDw - EXT / 2, top: 17.5 }, ceilingAt: 17 });
+  roof({ name: 'Dining roof', x: OUT.x0, y: dy0o, w: dx1o - OUT.x0, d: OUT.y0 - dy0o, axis: 'y', eave: 9, ridge: 12.8, noGable: ['s'] });
+  roof({ name: 'Porch roof', x: OUT.x1, y: BUMP.y0 - EXT, w: GAR.x0 - EXT - OUT.x1, d: 23.8 - (BUMP.y0 - EXT), axis: 'y', eave: 8.25, ridge: 12, noGable: ['n'] });
+  roof({ name: 'Garage roof', x: gx0 - EXT / 2, y: gy0 - EXT / 2, w: gx1 - gx0 + EXT, d: gy1 - gy0 + EXT, axis: 'y', eave: 8.5, ridge: 16.8 });
 
   return { floors, activeFloor: 1, site };
 }

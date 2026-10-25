@@ -294,7 +294,7 @@ export const WALL_FINISHES = {
 };
 
 export const FLOOR_FINISHES = {
-  oak:      { label: 'Oak hardwood',   tex: 'oak',      tile: 6,  rough: 0.55, color: '#c9a77c' },
+  oak:      { label: 'Oak hardwood',   tex: 'oak',      tile: 3.5, tileV: 8, rough: 0.55, color: '#c9a77c' },   // 6 boards × 7" wide, ~4–8' long
   tile:     { label: 'Porcelain tile', tex: 'tile',     tile: 6,  rough: 0.4,  color: '#8d8c88' },
   mosaic:   { label: 'Mosaic tile',    tex: 'mosaic',   tile: 2,  rough: 0.4,  color: '#6f7377' },
   carpet:   { label: 'Carpet',         tex: 'carpet',   tile: 3,  rough: 1.0,  color: '#a39a8c' },
@@ -312,8 +312,8 @@ export const ROOF_FINISHES = {
 };
 
 // ── Texture & material factories ────────────────────────────────────────────
-export function texture(name, color = '#cccccc', tile = 4, size = 512) {
-  const key = `${name}|${color}|${tile}|${size}`;
+export function texture(name, color = '#cccccc', tile = 4, size = 512, tileV = tile) {
+  const key = `${name}|${color}|${tile}|${size}|${tileV}`;
   if (_cache.has(key)) return _cache.get(key);
   const c = document.createElement('canvas');
   c.width = c.height = size;
@@ -322,7 +322,7 @@ export function texture(name, color = '#cccccc', tile = 4, size = 512) {
   (DRAW[name] || DRAW.paint)(ctx, size, color, rnd(h));
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(1 / tile, 1 / tile);
+  tex.repeat.set(1 / tile, 1 / tileV);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
   _cache.set(key, tex);
@@ -333,10 +333,10 @@ const _matCache = new Map();
 
 /** Material for a finish entry from one of the catalogs above. */
 export function finishMaterial(finish, color, opts = {}) {
-  const key = `${finish.tex}|${color}|${finish.tile}|${opts.side ?? ''}|${opts.transparent ?? ''}`;
+  const key = `${finish.tex}|${color}|${finish.tile}|${finish.tileV ?? ''}|${opts.side ?? ''}|${opts.transparent ?? ''}`;
   if (_matCache.has(key)) return _matCache.get(key);
   const m = new THREE.MeshStandardMaterial({
-    map: texture(finish.tex, color, finish.tile),
+    map: texture(finish.tex, color, finish.tile, 512, finish.tileV ?? finish.tile),
     roughness: finish.rough ?? 0.8,
     metalness: finish.metal ?? 0,
     side: opts.side ?? THREE.FrontSide,

@@ -289,7 +289,7 @@ export class Viewer3D {
 
       if ((this.view.ceilings || this.walk.on) && r.ceiling !== false && !r.outdoor) {
         const cg = new THREE.ShapeGeometry(new THREE.Shape([[r.x, r.y], [r.x + r.width, r.y], [r.x + r.width, r.y + r.height], [r.x, r.y + r.height]].map(([a, b]) => new THREE.Vector2(a, b))));
-        const cm = this._ownMesh(cg, mat('plain', '#f6f5f1', { roughness: 0.95 }));
+        const cm = this._ownMesh(cg, mat('plain', '#f6f5f1', { roughness: 0.95, emissive: '#e9e4da', emissiveIntensity: 0.45 }));   // fake bounce light off a white ceiling
         cm.rotation.x = Math.PI / 2; cm.position.y = floor.elev + (r.offset || 0) + floor.height - 0.01;
         g.add(cm);
       }
@@ -322,7 +322,22 @@ export class Viewer3D {
 
   _buildWalls(g, floor, fi, cut, peel) {
     const trim = mat('plain', this.state.site?.trimColor || '#f7f6f2', { roughness: 0.5 });
-    for (const w of this._allWalls(floor)) {
+    const walls = this._allWalls(floor);
+    const joinExt = (w, i, end) => {   // extend into a corner shared with a later, non-parallel wall
+      const px = end ? w.x2 : w.x1, py = end ? w.y2 : w.y1, ax = w.x2 - w.x1, ay = w.y2 - w.y1, al = Math.hypot(ax, ay) || 1;
+      for (let j = i + 1; j < walls.length; j++) {
+        const q = walls[j];
+        for (const [qx, qy] of [[q.x1, q.y1], [q.x2, q.y2]]) {
+          if (Math.hypot(qx - px, qy - py) > 0.05) continue;
+          const bx = q.x2 - q.x1, by = q.y2 - q.y1, bl = Math.hypot(bx, by) || 1;
+          if (Math.abs((ax * by - ay * bx) / (al * bl)) > 0.5) return (q.thick ?? DEFAULT_WALL_T) / 2 - 0.004;
+        }
+      }
+      return 0;
+    };
+    walls.forEach((w, wi) => { w._e0 = joinExt(w, wi, false); w._e1 = joinExt(w, wi, true); });
+    for (const w of walls) {
+      const e0 = w._e0 || 0, e1 = w._e1 || 0; delete w._e0; delete w._e1;   // scratch values, never saved
       const dx = w.x2 - w.x1, dy = w.y2 - w.y1, L = Math.hypot(dx, dy);
       if (L < 0.1) continue;
       const t = w.thick ?? DEFAULT_WALL_T;
@@ -365,7 +380,7 @@ export class Viewer3D {
       };
       // Merge overlapping openings, then cut
       const ops = wallOpenings(w, floor.furniture).map(o => ({ ...o, bottom: o.bottom - (w.base || 0), top: o.top - (w.base || 0) }));
-      let cursor = 0;
+      let cursor = -e0;
       for (const o of ops) {
         if (o.t0 > cursor) piece(cursor, o.t0, 0, H);
         const s = Math.max(cursor, o.t0);
@@ -375,7 +390,7 @@ export class Viewer3D {
         }
         cursor = Math.max(cursor, o.t1);
       }
-      piece(cursor, L, 0, H);
+      piece(cursor, L + e1, 0, H);
       g.add(wg);
     }
   }
@@ -693,21 +708,32 @@ export class Viewer3D {
     this.controls.enabled = !on;
     this._selBox.visible = false;
     if (on) {
-      this.camera.fov = 65; this.camera.updateProjectionMatrix();
+      this._applyWalkFov();
+      this.camera.near = 0.1;
       this.buildScene();
       this.walker = new Walker(this, ui, cb);
     } else {
       this.walker?.dispose(); this.walker = null;
-      this.camera.fov = 50; this.camera.updateProjectionMatrix();
+      this.camera.fov = 50; this.camera.near = 0.2; this.camera.updateProjectionMatrix();
       this.buildScene();
       this.focusOnLayout();
     }
+  }
+
+  /** Walk-mode field of view: aim for ~90° across (what a person takes in without turning their head),
+   *  but keep the vertical between 60° and 95° so portrait phones don't distort. */
+  _applyWalkFov() {
+    const aspect = this.camera.aspect || 1;
+    const vfov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(45)) / aspect);
+    this.camera.fov = THREE.MathUtils.clamp(THREE.MathUtils.radToDeg(vfov), 60, 95);
+    this.camera.updateProjectionMatrix();
   }
 
   _resize() {
     const w = this.container.clientWidth, h = this.container.clientHeight;
     if (!w || !h) return;
     this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
+    if (this.walk.on) this._applyWalkFov();
     this.renderer.setSize(w, h);
   }
 
