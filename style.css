@@ -387,3 +387,5 @@ input[type=color] { width: 34px; height: 30px; border: 1px solid var(--border); 
 @media (max-width: 900px), (pointer: coarse) {
   body.walking #toolbar, body.walking #sidebar, body.walking #statusbar, body.walking #props-panel { display: none !important; }
 }
+
+select.v3-btn { padding: 5px 6px; font: inherit; font-size: .74rem; font-weight: 600; }

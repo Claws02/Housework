@@ -329,6 +329,41 @@ export function texture(name, color = '#cccccc', tile = 4, size = 512, tileV = t
   return tex;
 }
 
+// How strongly each texture's light/dark detail reads as surface relief (0 = flat).
+const BUMP = { oak: 1.6, tile: 2.4, mosaic: 2, subway: 2.2, carpet: 1.4, concrete: 0.9, deck: 3, grass: 1.2, asphalt: 1.2,
+  gravel: 3, siding: 5, shingle: 4, brick: 4.5, stone: 6, beadboard: 3, framing: 3.5, plywood: 0.8, wood: 0.9, fabric: 0.6,
+  leather: 1.2, paint: 0.35, rug: 1, stripes: 0.4, floral: 0.4 };
+
+/** Tangent-space normal map derived from the colour texture's luminance (Sobel, wraps at the edges). */
+export function normalMap(name, color = '#cccccc', tile = 4, size = 512, tileV = tile) {
+  const strength = BUMP[name] ?? 0;
+  if (!strength) return null;
+  const key = `n|${name}|${color}|${tile}|${size}|${tileV}`;
+  if (_cache.has(key)) return _cache.get(key);
+  const src = texture(name, color, tile, size, tileV).image;
+  const S = src.width, d = src.getContext('2d').getImageData(0, 0, S, S).data;
+  const lum = new Float32Array(S * S);
+  for (let i = 0; i < S * S; i++) lum[i] = (d[i * 4] * 0.299 + d[i * 4 + 1] * 0.587 + d[i * 4 + 2] * 0.114) / 255;
+  const c = document.createElement('canvas'); c.width = c.height = S;
+  const ctx = c.getContext('2d'), out = ctx.createImageData(S, S), o = out.data;
+  const at = (x, y) => lum[((y + S) % S) * S + ((x + S) % S)];
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const dx = (at(x + 1, y - 1) + 2 * at(x + 1, y) + at(x + 1, y + 1)) - (at(x - 1, y - 1) + 2 * at(x - 1, y) + at(x - 1, y + 1));
+    const dy = (at(x - 1, y + 1) + 2 * at(x, y + 1) + at(x + 1, y + 1)) - (at(x - 1, y - 1) + 2 * at(x, y - 1) + at(x + 1, y - 1));
+    let nx = -dx * strength, ny = dy * strength, nz = 1;
+    const l = Math.hypot(nx, ny, nz); nx /= l; ny /= l; nz /= l;
+    const i = (y * S + x) * 4;
+    o[i] = (nx * 0.5 + 0.5) * 255; o[i + 1] = (ny * 0.5 + 0.5) * 255; o[i + 2] = (nz * 0.5 + 0.5) * 255; o[i + 3] = 255;
+  }
+  ctx.putImageData(out, 0, 0);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(1 / tile, 1 / tileV);
+  tex.anisotropy = 4;
+  _cache.set(key, tex);
+  return tex;
+}
+
 const _matCache = new Map();
 
 /** Material for a finish entry from one of the catalogs above. */
@@ -337,6 +372,7 @@ export function finishMaterial(finish, color, opts = {}) {
   if (_matCache.has(key)) return _matCache.get(key);
   const m = new THREE.MeshStandardMaterial({
     map: texture(finish.tex, color, finish.tile, 512, finish.tileV ?? finish.tile),
+    normalMap: normalMap(finish.tex, color, finish.tile, 512, finish.tileV ?? finish.tile),
     roughness: finish.rough ?? 0.8,
     metalness: finish.metal ?? 0,
     side: opts.side ?? THREE.FrontSide,
@@ -345,12 +381,21 @@ export function finishMaterial(finish, color, opts = {}) {
   return m;
 }
 
+const MODEL_TILE = { wood: 3, fabric: 1.5, leather: 2.5, concrete: 4, stone: 4, brick: 4, subway: 4, mosaic: 2, siding: 4,
+  shingle: 6, deck: 4, plywood: 4, beadboard: 4, stripes: 3, floral: 3, rug: 1, carpet: 3, tile: 4 };
+
 /** Free-form material helper for furniture: kind = texture drawer name or 'plain'. */
 export function mat(kind, color, extra = {}) {
   const key = `${kind}|${color}|${JSON.stringify(extra)}`;
   if (_matCache.has(key)) return _matCache.get(key);
   const p = { color: kind === 'plain' ? color : '#ffffff', roughness: 0.7, metalness: 0, ...extra };
-  if (kind !== 'plain') p.map = texture(kind, color, extra.tile ?? 1, 256);
+  if (kind !== 'plain') {
+    // model UVs are in feet on box-shaped parts; tile = feet per texture repeat
+    const tile = extra.tile ?? MODEL_TILE[kind] ?? 2;
+    p.map = texture(kind, color, tile, 256);
+    const nm = normalMap(kind, color, tile, 256);
+    if (nm) { p.normalMap = nm; p.normalScale = new THREE.Vector2(0.6, 0.6); }
+  }
   delete p.tile;
   const m = new THREE.MeshStandardMaterial(p);
   _matCache.set(key, m);

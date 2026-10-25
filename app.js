@@ -3,6 +3,7 @@ import { Viewer3D }          from './viewer3d.js';
 import { FURNITURE_CATALOG, CATALOG_BY_TYPE } from './furniture.js';
 import { WALL_FINISHES, FLOOR_FINISHES, ROOF_FINISHES } from './textures.js';
 import { buildHouse191 }     from './house191.js';
+import { TIMES, QUALITY }   from './lighting.js';
 import { sounds }            from './sounds.js';
 
 const STORAGE_KEY = 'house-v1';
@@ -524,6 +525,30 @@ function _bind3DBar() {
     _qs(`#v3-${k}`)?.classList.toggle('active', state.view3d[k]);
   }
   _on('v3-walk', 'click', () => _setWalk(true));
+  // Time of day, house lights, render quality (remembered per device)
+  let pref = {};
+  try { pref = JSON.parse(localStorage.getItem('house-render') || '{}'); } catch (_) {}
+  if (pref.time) state.view3d.time = pref.time;
+  if (pref.quality) state.view3d.quality = pref.quality;
+  const savePref = () => { try { localStorage.setItem('house-render', JSON.stringify({ time: state.view3d.time, quality: state.view3d.quality })); } catch (_) {} };
+  const timeEl = _qs('#v3-time');
+  const syncTime = () => {
+    timeEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.t === (state.view3d.time || 'day')));
+    _qs('#walk-time').textContent = (TIMES[state.view3d.time || 'day'].label).split(' ')[0];
+    _qs('#v3-lights').classList.toggle('active', !!viewer?.atmo.lampsLit);
+  };
+  const setTime = t => { state.view3d.time = t; viewer?.setTime(t); savePref(); syncTime(); };
+  for (const [k, t] of Object.entries(TIMES)) {
+    const b = document.createElement('button'); b.textContent = t.label; b.dataset.t = k;
+    b.addEventListener('click', () => setTime(k)); timeEl.appendChild(b);
+  }
+  _on('walk-time', 'click', () => { const keys = Object.keys(TIMES); setTime(keys[(keys.indexOf(state.view3d.time || 'day') + 1) % keys.length]); });
+  _on('v3-lights', 'click', () => { viewer?.setLights(!viewer.atmo.lampsLit); syncTime(); });
+  const q = _qs('#v3-quality');
+  q.innerHTML = Object.entries(QUALITY).map(([k, v]) => `<option value="${k}">✨ ${v.label}</option>`).join('');
+  q.addEventListener('change', () => { state.view3d.quality = q.value; viewer?.setQuality(q.value); savePref(); });
+  window.__syncRenderUI = () => { q.value = state.view3d.quality; syncTime(); };
+  syncTime();
   _on('v3-home', 'click', () => viewer?.focusOnLayout());
 }
 
@@ -610,6 +635,7 @@ function _setMode(mode) {
     if (!viewer) {
       viewer = new Viewer3D(_qs('#view-3d'), state, { onSelect: _onPick3D, onUpdate: _onUpdate });
       viewer.focusOnLayout();
+      window.__syncRenderUI?.();
     } else viewer.refresh();
   } else editor?.render();
 }

@@ -342,6 +342,7 @@ export class Walker {
 
     // character
     const g = this.char.group;
+    if (moved > 0.001 || Math.abs(g.rotation.y - this.facing) > 0.01) this.v.atmo.shadowDirty = this.thirdPerson || this.v.atmo.shadowDirty;
     g.position.copy(this.pos);
     g.rotation.y = this.facing;
     this.char.animate(dt, dt > 0 ? moved / dt : 0, air);
@@ -376,7 +377,8 @@ export class Walker {
       this.floorIdx = fi; this.outdoors = outdoors;
       this.v.walkLevel = outdoors ? 'all' : fi;
       this.v.walkOutdoors = outdoors;
-      this.v.buildScene();
+      this.v.atmo?.setIndoor(!outdoors);
+      if (force) this.v.buildScene();
       this.occluders = this.v._pickables.filter(o => ['wall', 'roof', 'room'].includes(o.userData.pick?.kind) && o.isMesh);
     }
     const label = `📍 ${st.floors[fi]?.name ?? ''} · ${this.roomName}`;
@@ -423,5 +425,6 @@ export class Walker {
     window.removeEventListener('keydown', this._onKey); window.removeEventListener('keyup', this._onKey);
     window.removeEventListener('blur', this._onBlur);
     this.v.walkLevel = null; this.v.walkOutdoors = null;
+    this.v.atmo?.setIndoor(false);
   }
 }

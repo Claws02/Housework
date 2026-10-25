@@ -14,6 +14,9 @@ Add `?view=3d` to the URL to open straight into 3D.
 - **3D View**: orbit with drag, pan with right-drag or two fingers. Tap anything to select it, and drag a selected item to move it.
   **Show** filters levels (All / B / 1 / 2). **Roof**, **Ceilings** and **Cutaway** toggle what's drawn.
   **Walk** drops you in as a little character on the front walk.
+  **☀ Day / 🌇 Evening / 🌙 Night** sets the sun and sky. **💡 Lights** switches the house fixtures (on by default in the evening and at night).
+  **✨ Low / Medium / High** trades looks for speed: ambient occlusion, bloom, more lamp lights and sharper shadows at higher levels.
+  It defaults to Medium on phones and High on desktops, and remembers your choice.
 - **Walk-through**: on a phone or tablet, put your left thumb anywhere in the bottom-left to get a joystick
   (push it all the way to run) and swipe anywhere else to look around. On a desktop, use WASD or the arrows, drag to look,
   hold Shift to run, and scroll to zoom. Doorways and stairs work, while walls and big furniture block you. Floors above you
@@ -33,6 +36,7 @@ Add `?view=3d` to the URL to open straight into 3D.
 | `viewer3d.js` | Scene build: floors, walls with openings, gable/dormer roofs, ground, picking, walk mode |
 | `walker.js` | Walk-through controller: joystick and look input, collision, stairs and floors, third- and first-person cameras |
 | `character.js` | The walking character model and its walk/run animation |
+| `lighting.js` | Physical sky, sun and time of day, sky-lit reflections, indoor fill, pooled fixture lights, and the AO/bloom render pipeline with quality levels |
 | `models3d.js` | ~80 procedural furniture and fixture builders, sized from each item's width/depth/height |
 | `textures.js` | Procedural canvas textures (oak, tile, siding, shingles, brick, stone, …) and finish catalogs |
 | `furniture.js` | Catalog: dimensions, default colors, model key, wall-opening and mount flags |

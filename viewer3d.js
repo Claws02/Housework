@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CATALOG_BY_TYPE } from './furniture.js';
 import { buildModel } from './models3d.js';
 import { WALL_FINISHES, FLOOR_FINISHES, ROOF_FINISHES, finishMaterial, mat } from './textures.js';
 import { Walker } from './walker.js';
+import { Atmosphere, Pipeline, defaultQuality, isFixture } from './lighting.js';
 
 const DEFAULT_WALL_H = 8;
 const DEFAULT_WALL_T = 0.4;
@@ -113,8 +113,6 @@ export class Viewer3D {
     this._itemNodes = new Map();
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xbfd6e8);
-    this.scene.fog = new THREE.Fog(0xbfd6e8, 220, 520);
 
     const w = container.clientWidth || 300, h = container.clientHeight || 200;
     this.camera = new THREE.PerspectiveCamera(50, w / h, 0.2, 1500);
@@ -125,8 +123,9 @@ export class Viewer3D {
     this.renderer.setSize(w, h);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.autoUpdate = false;           // lighting.js flags redraws
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = 1.0;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(this.renderer.domElement);
 
@@ -139,12 +138,14 @@ export class Viewer3D {
     this.controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
     this.controls.target.set(30, 0, 5);
 
-    this._setupLights();
-    // soft studio reflections so stainless, chrome and glass read correctly
-    const pm = new THREE.PMREMGenerator(this.renderer);
-    this.scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
-    this.scene.environmentIntensity = 0.45;
-    pm.dispose();
+    // Physical sky + sun + sky-lit reflections, fixture lights, and the post-processing chain
+    this.atmo = new Atmosphere(this.scene, this.renderer);
+    this.sun = this.atmo.sun;
+    this.pipeline = new Pipeline(this.renderer, this.scene, this.camera);
+    this.view.time ??= 'day';
+    this.view.quality ??= defaultQuality();
+    this.atmo.setTime(this.view.time);
+    this.pipeline.setQuality(this.view.quality, this.atmo);
     this.root = new THREE.Group();
     this.scene.add(this.root);
     this._selBox = new THREE.Box3Helper(new THREE.Box3(), 0xffd400);
@@ -165,28 +166,13 @@ export class Viewer3D {
 
   get view() { return this.state.view3d; }
 
-  _setupLights() {
-    this.scene.add(new THREE.HemisphereLight(0xdfefff, 0x9a8f80, 0.85));
-    const sun = new THREE.DirectionalLight(0xfff1dc, 2.2);
-    sun.position.set(-60, 110, 70);
-    sun.castShadow = true;
-    Object.assign(sun.shadow.camera, { near: 1, far: 400, left: -110, right: 110, top: 110, bottom: -110 });
-    sun.shadow.mapSize.set(4096, 4096);
-    sun.shadow.bias = -0.0004;
-    sun.shadow.normalBias = 0.04;
-    sun.target.position.set(30, 0, 0);
-    this.scene.add(sun, sun.target);
-    this.sun = sun;
-    this.fill = new THREE.AmbientLight(0xffffff, 0.35);
-    this.scene.add(this.fill);
-  }
-
   // ── Scene build ───────────────────────────────────────────────────────────
   refresh() { this.buildScene(); }
 
   _visibleFloors() {
     const floors = this.state.floors;
-    const lvl = this.walk.on && this.walkLevel != null ? this.walkLevel : this.view.level;
+    // walking: keep the whole house so floors and roof block light like the real thing
+    const lvl = this.walk.on ? 'all' : this.view.level;
     return floors.map((f, i) => ({ f, i })).filter(({ i }) => lvl === 'all' || i <= lvl);
   }
 
@@ -202,10 +188,11 @@ export class Viewer3D {
     }
     this._pickables = [];
     this._itemNodes = new Map();
+    this._fixtures = [];
     const used = new Set();
     const site = this.state.site || {};
     const top = this._topVisible();
-    const showRoof = this.walk.on ? !!this.walkOutdoors : this.view.roof && this.view.level === 'all' && !this.view.cutaway;
+    const showRoof = this.walk.on ? true : this.view.roof && this.view.level === 'all' && !this.view.cutaway;
 
     for (const { f, i } of this._visibleFloors()) {
       const g = new THREE.Group();
@@ -233,6 +220,10 @@ export class Viewer3D {
     }
 
     for (const k of this._modelCache.keys()) if (!used.has(k)) this._modelCache.delete(k);
+    this.root.updateMatrixWorld(true);
+    this.atmo.setFixtures(this._fixtures);
+    this.atmo.applyEnv();
+    this.atmo.shadowDirty = true;
     if (this.walker) this.walker.occluders = this._pickables.filter(o => ['wall', 'roof', 'room'].includes(o.userData.pick?.kind) && o.isMesh);
     if (!this.walk.on) this._updateSelection();
   }
@@ -298,20 +289,26 @@ export class Viewer3D {
 
   /** Material for one face of a wall, auto-picked from the room on that side unless overridden. */
   _sideMat(floor, wall, side) {
+    const { key, color } = this._sideFinish(floor, wall, side);
+    return finishMaterial(WALL_FINISHES[key] || WALL_FINISHES.paint, color);
+  }
+
+  /** Which finish a wall face gets: explicit override, else the room on that side, else siding/paint. */
+  _sideFinish(floor, wall, side) {
     const fk = side === 'A' ? wall.finishA : wall.finishB;
     const ck = side === 'A' ? wall.colorA : wall.colorB;
-    if (fk) return finishMaterial(WALL_FINISHES[fk] || WALL_FINISHES.paint, ck || '#ecebe6');
+    if (fk) return { key: fk, color: ck || '#ecebe6' };
     const dx = wall.x2 - wall.x1, dy = wall.y2 - wall.y1, len = Math.hypot(dx, dy) || 1;
     const nx = -dy / len, ny = dx / len, sgn = side === 'A' ? 1 : -1, off = (wall.thick ?? DEFAULT_WALL_T) / 2 + 0.4;
     const mx = (wall.x1 + wall.x2) / 2 + nx * off * sgn, my = (wall.y1 + wall.y2) / 2 + ny * off * sgn;
     // auto walls of a room: side A faces into that room, side B faces the neighbour
     const r = wall.roomId && side === 'A' ? floor.rooms.find(q => q.id === wall.roomId) : roomAt(floor, mx, my, true);
-    if (r && r.id !== (side === 'B' ? wall.roomId : null)) return finishMaterial(WALL_FINISHES[r.wallFinish] || WALL_FINISHES.paint, r.wallColor || '#ecebe6');
+    if (r && r.id !== (side === 'B' ? wall.roomId : null)) return { key: r.wallFinish || 'paint', color: r.wallColor || '#ecebe6', room: r };
     if (wall.ext || wall.roomId) {
-      const f = WALL_FINISHES[floor.extFinish || 'siding'];
-      return finishMaterial(f, floor.extFinish === 'concrete' ? '#b3afa7' : (this.state.site?.sidingColor || '#5f7180'));
+      const k = floor.extFinish || 'siding';
+      return { key: k, color: k === 'concrete' ? '#b3afa7' : (this.state.site?.sidingColor || '#5f7180') };
     }
-    return finishMaterial(WALL_FINISHES.paint, '#ecebe6');
+    return { key: 'paint', color: '#ecebe6' };
   }
 
   _allWalls(floor) {
@@ -346,6 +343,9 @@ export class Viewer3D {
       if (peel) H = Math.min(H, floor.height - (w.base || 0));
       const base = floor.elev + (w.base || 0);
       const mA = this._sideMat(floor, w, 'A'), mB = this._sideMat(floor, w, 'B');
+      // 4" painted baseboard on interior painted faces
+      const baseA = ['paint', 'beadboard'].includes(this._sideFinish(floor, w, 'A').key);
+      const baseB = ['paint', 'beadboard'].includes(this._sideFinish(floor, w, 'B').key);
       const mats = [trim, trim, trim, trim, mA, mB];
       const wg = new THREE.Group();
       wg.position.set(w.x1, base, w.y1);
@@ -373,6 +373,15 @@ export class Viewer3D {
         } else {
           m = this._ownMesh(uvBox(u1 - u0, v1 - v0, t, u0, v0 + (w.base || 0), L), mats);
           m.position.set((u0 + u1) / 2, (v0 + v1) / 2, 0);
+        }
+        if (v0 < 0.01 && v1 > 0.5) for (const [on, sg] of [[baseA, 1], [baseB, -1]]) {
+          if (!on) continue;
+          const bb = this._ownMesh(new THREE.BoxGeometry(u1 - u0, 0.34, 0.045), trim);
+          bb.position.set((u0 + u1) / 2, 0.17, sg * (t / 2 + 0.022)); bb.castShadow = false;
+          wg.add(bb);
+          const cap = this._ownMesh(new THREE.BoxGeometry(u1 - u0, 0.04, 0.06), trim);
+          cap.position.set((u0 + u1) / 2, 0.355, sg * (t / 2 + 0.028)); cap.castShadow = false;
+          wg.add(cap);
         }
         m.userData.pick = w.roomId ? { kind: 'room', id: w.roomId, floor: fi } : { kind: 'wall', id: w.id, floor: fi };
         this._pickables.push(m);
@@ -460,6 +469,7 @@ export class Viewer3D {
       g.add(node);
       this._pickables.push(node);
       this._itemNodes.set(it.id, node);
+      if (isFixture(cat?.model)) this._fixtures.push({ node, model: cat.model, h: it.height ?? cat.height3d });
     }
   }
 
@@ -504,7 +514,7 @@ export class Viewer3D {
     };
     const fin = ROOF_FINISHES[rf.finish] || ROOF_FINISHES.shingle;
     const shingle = finishMaterial(fin, rf.color || '#4d4b4a');
-    const under = mat('plain', '#f3f2ee', { roughness: 0.95 });
+    const under = mat('plain', '#f3f2ee', { roughness: 0.95, emissive: '#e9e4da', emissiveIntensity: 0.4 });   // painted ceiling side
     const trim = mat('plain', this.state.site?.trimColor || '#f7f6f2', { roughness: 0.5 });
     const sidingF = WALL_FINISHES.siding, sidingC = this.state.site?.sidingColor || '#5f7180';
     const siding = finishMaterial(sidingF, sidingC);
@@ -658,6 +668,7 @@ export class Viewer3D {
       this._drag.node.position.x = Math.round((pt.x + this._drag.ox) / snap) * snap;
       this._drag.node.position.z = Math.round((pt.z + this._drag.oz) / snap) * snap;
       this._drag.moved = true;
+      this.atmo.shadowDirty = true;
       this._updateSelection();
     });
     const up = e => {
@@ -735,6 +746,7 @@ export class Viewer3D {
     this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
     if (this.walk.on) this._applyWalkFov();
     this.renderer.setSize(w, h);
+    this.pipeline?.resize();
   }
 
   _animate() {
@@ -742,7 +754,10 @@ export class Viewer3D {
     const dt = Math.min(0.05, this._clock.getDelta());
     if (this.walker) this.walker.update(dt);
     else this.controls.update();
-    this.renderer.render(this.scene, this.camera);
+    // aim the sun's shadow box at what you're looking at (tight & crisp when walking)
+    if (this.walker) this.atmo.update(dt, this.walker.pos, 38, this.camera.position);
+    else this.atmo.update(dt, this.controls.target, this.camera.position.distanceTo(this.controls.target) * 0.85, this.camera.position);
+    this.pipeline.render();
   }
 
   focusOnLayout() {
@@ -761,6 +776,10 @@ export class Viewer3D {
     this.controls.target.set(cx, fy, cz);
     this.controls.update();
   }
+
+  setTime(key) { this.view.time = key; this.atmo.setTime(key); }
+  setQuality(key) { this.view.quality = key; this.pipeline.setQuality(key, this.atmo); }
+  setLights(on) { this.atmo.setLightsOn(on); }
 
   snapshotPNG() { return this.renderer.domElement.toDataURL('image/png'); }
 

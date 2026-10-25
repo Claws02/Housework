@@ -6,6 +6,14 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { mat } from './textures.js';
 
 // ── Shared materials ────────────────────────────────────────────────────────
+/** Materials that glow when the house lights are on (lighting.js scales their emissiveIntensity). */
+export const LAMP_MATS = new Set();
+function lampMat(color, emissive, base, extra = {}) {
+  const m = mat('plain', color, { roughness: 0.5, emissive, emissiveIntensity: base, ...extra });
+  m.userData.base = base; LAMP_MATS.add(m);
+  return m;
+}
+
 const M = {
   white:    () => mat('plain', '#f3f1ec', { roughness: 0.45 }),
   trim:     () => mat('plain', '#f7f6f2', { roughness: 0.4 }),
@@ -20,13 +28,13 @@ const M = {
   glass:    () => mat('plain', '#cfe3ee', { roughness: 0.03, metalness: 0.1, transparent: true, opacity: 0.25, depthWrite: false }),
   mirror:   () => mat('plain', '#dfe8ec', { roughness: 0.02, metalness: 1 }),
   rubber:   () => mat('plain', '#202022', { roughness: 0.9 }),
-  bulb:     () => mat('plain', '#fff6dc', { roughness: 0.4, emissive: '#ffe7b0', emissiveIntensity: 0.9 }),
-  shade:    () => mat('plain', '#f1eadb', { roughness: 0.9, emissive: '#5a4a30', emissiveIntensity: 0.25, side: THREE.DoubleSide }),
+  bulb:     () => lampMat('#fff6dc', '#ffe1a8', 1.2, { roughness: 0.4 }),
+  shade:    () => lampMat('#f1eadb', '#b08a55', 0.5, { roughness: 0.9, side: THREE.DoubleSide }),
   linen:    () => mat('fabric', '#f4f2ec', { roughness: 0.95 }),
   quartz:   () => mat('concrete', '#e9e7e2', { roughness: 0.25 }),
   soil:     () => mat('plain', '#3b2b1e', { roughness: 1 }),
   bark:     () => mat('wood', '#5b4632', { roughness: 1 }),
-  brick:    () => mat('brick', '#8e3b2c', { roughness: 0.95, tile: 1 }),
+  brick:    () => mat('brick', '#8e3b2c', { roughness: 0.95, tile: 4 }),
   stone:    () => mat('stone', '#9b8f80', { roughness: 0.95 }),
   concrete: () => mat('concrete', '#a8a59f', { roughness: 0.95 }),
   plain:    (c, r = 0.7, x = {}) => mat('plain', c, { roughness: r, ...x }),
@@ -41,19 +49,40 @@ const _geo = new Map();
 function geo(key, make) { if (!_geo.has(key)) _geo.set(key, make()); return _geo.get(key); }
 const r3 = v => Math.round(v * 1000) / 1000;
 
+/** Rescale a box-like geometry's per-face 0..1 UVs to feet so textures keep real-world scale. */
+function feetUV(g, w, h, d) {
+  const uv = g.attributes.uv, idx = g.index;
+  const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
+  const done = new Uint8Array(uv.count);
+  g.groups.forEach((grp, f) => {
+    const [du, dv] = dims[f] || [1, 1];
+    for (let i = grp.start; i < grp.start + grp.count; i++) {
+      const v = idx ? idx.getX(i) : i;
+      if (done[v]) continue; done[v] = 1;
+      uv.setXY(v, uv.getX(v) * du, uv.getY(v) * dv);
+    }
+  });
+  return g;
+}
+
 class Kit {
   constructor() { this.g = new THREE.Group(); }
   _put(mesh, x, y, z) { mesh.position.set(x, y, z); this.g.add(mesh); return mesh; }
   /** Box sitting on y (bottom face at y). */
   box(w, h, d, m, x = 0, y = 0, z = 0) {
     w = Math.max(w, 0.01); h = Math.max(h, 0.01); d = Math.max(d, 0.01);
-    const g = geo(`b${r3(w)},${r3(h)},${r3(d)}`, () => new THREE.BoxGeometry(w, h, d));
+    const g = geo(`b${r3(w)},${r3(h)},${r3(d)}`, () => feetUV(new THREE.BoxGeometry(w, h, d), w, h, d));
+    return this._put(new THREE.Mesh(g, m), x, y + h / 2, z);
+  }
+  /** Box whose texture spans each face once (rugs, artwork). */
+  boxUnit(w, h, d, m, x = 0, y = 0, z = 0) {
+    const g = geo(`bu${r3(w)},${r3(h)},${r3(d)}`, () => new THREE.BoxGeometry(w, h, d));
     return this._put(new THREE.Mesh(g, m), x, y + h / 2, z);
   }
   rbox(w, h, d, rad, m, x = 0, y = 0, z = 0) {
     w = Math.max(w, 0.02); h = Math.max(h, 0.02); d = Math.max(d, 0.02);
     rad = Math.min(rad, w / 2, h / 2, d / 2) * 0.98;
-    const g = geo(`rb${r3(w)},${r3(h)},${r3(d)},${r3(rad)}`, () => new RoundedBoxGeometry(w, h, d, 3, rad));
+    const g = geo(`rb${r3(w)},${r3(h)},${r3(d)},${r3(rad)}`, () => feetUV(new RoundedBoxGeometry(w, h, d, 3, rad), w, h, d));
     return this._put(new THREE.Mesh(g, m), x, y + h / 2, z);
   }
   cyl(rt, rb, h, m, x = 0, y = 0, z = 0, seg = 20) {
@@ -158,8 +187,8 @@ const B = {};
 B.bed = (k, w, d, h, c, c2, it) => {
   const frame = it.pattern === 'wood' ? M.wood(c2) : M.plain(c2, 0.5);
   const railH = 1.0, mt = Math.max(0.5, h - railH);
-  const pat = it.pattern === 'stripes' ? mat('stripes', c, { roughness: 0.95, tile: 1 })
-            : it.pattern === 'floral'  ? mat('floral',  c, { roughness: 0.95, tile: 1 })
+  const pat = it.pattern === 'stripes' ? mat('stripes', c, { roughness: 0.95, tile: 3 })
+            : it.pattern === 'floral'  ? mat('floral',  c, { roughness: 0.95, tile: 3 })
             : M.fabric(c);
   k.box(w, railH - 0.3, d - 0.3, frame, 0, 0.3, 0.05);
   legs4(k, w, d - 0.2, 0.3, 0.12, frame, 0.15, false);
@@ -399,7 +428,7 @@ B.builtins = (k, w, d, h, c, c2, it) => {   // white built-in cabinet + open she
 };
 
 B.fireplace = (k, w, d, h, c, c2) => {      // stacked-stone surround, black firebox, wood mantel
-  const st = mat('stone', c, { roughness: 0.95, tile: 1 });
+  const st = mat('stone', c, { roughness: 0.95, tile: 4 });
   k.box(w, h, d, st, 0, 0, 0);
   k.box(w * 0.5, Math.min(2.6, h * 0.55), 0.1, M.black(), 0, 0.5, d / 2 - 0.04);
   k.box(w * 0.42, Math.min(2.2, h * 0.47), 0.04, mat('plain', '#2a1a10', { emissive: '#3a1206', emissiveIntensity: 0.6 }), 0, 0.6, d / 2 + 0.01);
@@ -426,7 +455,7 @@ B.rug = (k, w, d, h, c, c2, it) => {
   if (it.type.includes('round')) {
     const mesh = k.cyl(w / 2, w / 2, 0.04, m, 0, 0, 0, 40);
     mesh.scale.z = d / w;
-  } else k.box(w, 0.04, d, m, 0, 0, 0);
+  } else k.boxUnit(w, 0.04, d, m, 0, 0, 0);
 };
 
 B.plant = (k, w, d, h, c, c2, it) => {
@@ -671,14 +700,14 @@ B.pendant = (k, w, d, h, c, c2, it, ctx) => {
 };
 
 B.ceilingLight = (k, w, d, h) => {
-  k.cyl(w * 0.5, w * 0.42, h, mat('plain', '#f6f4ee', { roughness: 0.3, emissive: '#fff1d0', emissiveIntensity: 0.6 }), 0, 0, 0, 24);
+  k.cyl(w * 0.5, w * 0.42, h, lampMat('#f6f4ee', '#ffe9c4', 0.9, { roughness: 0.3 }), 0, 0, 0, 24);
   k.cyl(w * 0.52, w * 0.52, 0.04, M.nickel(), 0, h - 0.04, 0, 24);
 };
 
 B.lantern = (k, w, d, h, c, c2, it, ctx) => {   // porch pendant lantern
   const drop = Math.max(0.2, (ctx.ceil ?? 8) - (it.lift ?? 6) - h);
   k.cyl(0.015, 0.015, drop, M.iron(), 0, h, 0, 6);
-  k.cyl(w * 0.35, w * 0.45, h * 0.75, mat('plain', '#f0e8d0', { roughness: 0.1, transparent: true, opacity: 0.55, emissive: '#ffd890', emissiveIntensity: 0.5 }), 0, h * 0.12, 0, 12);
+  k.cyl(w * 0.35, w * 0.45, h * 0.75, lampMat('#f0e8d0', '#ffd890', 0.8, { roughness: 0.1, transparent: true, opacity: 0.55 }), 0, h * 0.12, 0, 12);
   for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; k.box(0.03, h * 0.8, 0.03, M.iron(), Math.cos(a) * w * 0.4, h * 0.1, Math.sin(a) * w * 0.4); }
   k.cone(w * 0.5, h * 0.2, M.iron(), 0, h * 0.82, 0, 12);
   k.cyl(w * 0.45, w * 0.3, 0.06, M.iron(), 0, 0.05, 0, 12);
@@ -727,9 +756,9 @@ B.tub = (k, w, d, h, c, c2, it) => {
 };
 
 B.shower = (k, w, d, h, c, c2) => {   // glass enclosure with subway-tiled back & left walls
-  const tile = mat('subway', c, { roughness: 0.25, tile: 1 });
+  const tile = mat('subway', c, { roughness: 0.25, tile: 4 });
   k.box(w, 0.25, d, M.porcelain(), 0, 0, 0);
-  k.box(w - 0.2, 0.02, d - 0.2, mat('mosaic', '#6f7377', { roughness: 0.5, tile: 0.5 }), 0, 0.24, 0);
+  k.box(w - 0.2, 0.02, d - 0.2, mat('mosaic', '#6f7377', { roughness: 0.5, tile: 2 }), 0, 0.24, 0);
   k.box(w, h, 0.12, tile, 0, 0, -d / 2 + 0.06);
   k.box(0.12, h, d, tile, -w / 2 + 0.06, 0, 0);
   k.box(0.02, h - 0.6, d - 0.15, M.glass(), w / 2 - 0.02, 0.25, 0);
@@ -976,7 +1005,7 @@ B.railing = (k, w, d, h, c) => {
 };
 
 B.steps = (k, w, d, h, c) => {
-  const n = Math.max(1, Math.round(h / 0.6)), run = d / n, m = mat('deck', c, { roughness: 0.9, tile: 1 });
+  const n = Math.max(1, Math.round(h / 0.6)), run = d / n, m = mat('deck', c, { roughness: 0.9, tile: 4 });
   for (let i = 0; i < n; i++) k.box(w, h - i * h / n, run + 0.02, m, 0, 0, -d / 2 + (i + 0.5) * run);
 };
 
@@ -993,7 +1022,7 @@ B.halfWall = (k, w, d, h, c) => {
 };
 
 B.chimney = (k, w, d, h) => {
-  const br = mat('brick', '#8e3b2c', { roughness: 0.95, tile: 0.5 });
+  const br = mat('brick', '#8e3b2c', { roughness: 0.95, tile: 4 });
   k.box(w, h, d, br, 0, 0, 0);
   k.box(w + 0.3, 0.3, d + 0.3, br, 0, h - 0.6, 0);
   k.box(w + 0.1, 0.25, d + 0.1, M.concrete(), 0, h, 0);
@@ -1170,7 +1199,7 @@ B.hosta = (k, w, d, h, c, c2, it) => {
 };
 
 B.shed = (k, w, d, h, c, c2) => {          // gable shed on blocks with double doors & ramp
-  const siding = mat('siding', c, { roughness: 0.9, tile: 1 }), trim = M.trim();
+  const siding = mat('siding', c, { roughness: 0.9, tile: 4 }), trim = M.trim();
   const wallH = h * 0.6, rise = h - wallH - 0.6;
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) k.box(0.6, 0.6, 0.6, M.concrete(), sx * (w / 2 - 0.4), 0, sz * (d / 2 - 0.4));
   const body = k.box(w, wallH, d, siding, 0, 0.6, 0); void body;
@@ -1181,7 +1210,7 @@ B.shed = (k, w, d, h, c, c2) => {          // gable shed on blocks with double d
   const tm = new THREE.Mesh(tg, siding); tm.position.set(0, 0.6 + wallH, -d / 2); k.g.add(tm);
   const slope = Math.hypot(w / 2 + 0.5, rise + 0.3), ang = Math.atan2(rise + 0.3, w / 2 + 0.5);
   for (const sx of [-1, 1]) {
-    const r = k.box(slope, 0.2, d + 0.8, mat('shingle', '#5a5550', { roughness: 0.95, tile: 1 }), 0, 0, 0);
+    const r = k.box(slope, 0.2, d + 0.8, mat('shingle', '#5a5550', { roughness: 0.95, tile: 6 }), 0, 0, 0);
     r.position.set(sx * (w / 4 + 0.15), 0.6 + wallH + rise / 2 + 0.15, 0); r.rotation.z = -sx * ang;
   }
   // doors
@@ -1192,7 +1221,7 @@ B.shed = (k, w, d, h, c, c2) => {          // gable shed on blocks with double d
   k.box(1.2, 1.2, 0.08, M.glass(), -w * 0.36, 0.6 + wallH * 0.45, d / 2 + 0.03);
   k.box(1.3, 1.3, 0.05, trim, -w * 0.36, 0.55 + wallH * 0.45, d / 2 + 0.02);
   for (const sx of [-1, 1]) k.box(0.45, 1.4, 0.06, M.plain('#2b2b2b', 0.7), -w * 0.36 + sx * 0.9, 0.5 + wallH * 0.45, d / 2 + 0.04);
-  const ramp = k.box(w * 0.5, 0.15, 2.5, mat('deck', '#8c8170', { roughness: 0.95, tile: 1 }), 0, 0, d / 2 + 1.1);
+  const ramp = k.box(w * 0.5, 0.15, 2.5, mat('deck', '#8c8170', { roughness: 0.95, tile: 4 }), 0, 0, d / 2 + 1.1);
   ramp.position.y = 0.32; ramp.rotation.x = 0.22;
 };
 
@@ -1201,7 +1230,7 @@ B.firePit = (k, w, d, h) => {
   const n = 14;
   for (let i = 0; i < n; i++) {
     const a = i / n * 6.28;
-    const s = k.box(w * 0.22, h, w * 0.12, mat('stone', '#8f8a82', { roughness: 1, tile: 1 }), Math.cos(a) * w * 0.42, 0, Math.sin(a) * w * 0.42);
+    const s = k.box(w * 0.22, h, w * 0.12, mat('stone', '#8f8a82', { roughness: 1, tile: 3 }), Math.cos(a) * w * 0.42, 0, Math.sin(a) * w * 0.42);
     s.rotation.y = -a + Math.PI / 2;
   }
   k.cyl(w * 0.36, w * 0.36, 0.05, mat('plain', '#2a2622', { roughness: 1 }), 0, 0.02, 0, 20);
