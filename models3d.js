@@ -977,7 +977,7 @@ B.railing = (k, w, d, h, c) => {
 
 B.steps = (k, w, d, h, c) => {
   const n = Math.max(1, Math.round(h / 0.6)), run = d / n, m = mat('deck', c, { roughness: 0.9, tile: 1 });
-  for (let i = 0; i < n; i++) k.box(w, h - i * h / n, run + 0.02, m, 0, 0, -d / 2 + (n - i - 0.5) * run);
+  for (let i = 0; i < n; i++) k.box(w, h - i * h / n, run + 0.02, m, 0, 0, -d / 2 + (i + 0.5) * run);
 };
 
 B.post = (k, w, d, h, c) => {

@@ -13,7 +13,12 @@ Add `?view=3d` to the URL to open straight into 3D.
   end dots to reshape it; corners that share a point move together. Doors and windows snap onto walls and cut them in 3D.
 - **3D View**: orbit with drag, pan with right-drag or two fingers. Tap anything to select it, and drag a selected item to move it.
   **Show** filters levels (All / B / 1 / 2). **Roof**, **Ceilings** and **Cutaway** toggle what's drawn.
-  **Walk** is first-person (WASD or arrow keys, drag to look, on-screen pad for touch).
+  **Walk** drops you in as a little character on the front walk.
+- **Walk-through**: on a phone or tablet, put your left thumb anywhere in the bottom-left to get a joystick
+  (push it all the way to run) and swipe anywhere else to look around. On a desktop, use WASD or the arrows, drag to look,
+  hold Shift to run, and scroll to zoom. Doorways and stairs work, while walls and big furniture block you. Floors above you
+  hide while you're indoors. **👁 First person / 🧍 Third person** switches the camera (or press V), **Shirt** changes
+  your color, and **✕ Exit** (or Esc) leaves.
 - **Properties**: size, elevation, rotation and colors for items. Floor finish, wall paint or finish,
   ceiling and outdoor flags for rooms. Height, thickness, exterior flag and a finish per side for walls (A/B, with flip and split).
   Eave, ridge, overhang and color for roofs.
@@ -26,6 +31,8 @@ Add `?view=3d` to the URL to open straight into 3D.
 | `app.js` | State (floors, site, view), history, panels, palette, persistence |
 | `editor2d.js` | Canvas floor-plan editor |
 | `viewer3d.js` | Scene build: floors, walls with openings, gable/dormer roofs, ground, picking, walk mode |
+| `walker.js` | Walk-through controller: joystick and look input, collision, stairs and floors, third- and first-person cameras |
+| `character.js` | The walking character model and its walk/run animation |
 | `models3d.js` | ~80 procedural furniture and fixture builders, sized from each item's width/depth/height |
 | `textures.js` | Procedural canvas textures (oak, tile, siding, shingles, brick, stone, …) and finish catalogs |
 | `furniture.js` | Catalog: dimensions, default colors, model key, wall-opening and mount flags |

@@ -5,6 +5,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CATALOG_BY_TYPE } from './furniture.js';
 import { buildModel } from './models3d.js';
 import { WALL_FINISHES, FLOOR_FINISHES, ROOF_FINISHES, finishMaterial, mat } from './textures.js';
+import { Walker } from './walker.js';
 
 const DEFAULT_WALL_H = 8;
 const DEFAULT_WALL_T = 0.4;
@@ -150,7 +151,9 @@ export class Viewer3D {
     this._selBox.visible = false;
     this.scene.add(this._selBox);
 
-    this.walk = { on: false, yaw: 0, pitch: 0, keys: new Set(), pad: new Set() };
+    this.walk = { on: false };
+    this.walker = null;
+    this.walkLevel = null; this.walkOutdoors = null;
     this._clock = new THREE.Clock();
     this._bindPointer();
 
@@ -183,7 +186,7 @@ export class Viewer3D {
 
   _visibleFloors() {
     const floors = this.state.floors;
-    const lvl = this.view.level;
+    const lvl = this.walk.on && this.walkLevel != null ? this.walkLevel : this.view.level;
     return floors.map((f, i) => ({ f, i })).filter(({ i }) => lvl === 'all' || i <= lvl);
   }
 
@@ -202,7 +205,7 @@ export class Viewer3D {
     const used = new Set();
     const site = this.state.site || {};
     const top = this._topVisible();
-    const showRoof = this.view.roof && (this.view.level === 'all' || this.walk.on) && !this.view.cutaway;
+    const showRoof = this.walk.on ? !!this.walkOutdoors : this.view.roof && this.view.level === 'all' && !this.view.cutaway;
 
     for (const { f, i } of this._visibleFloors()) {
       const g = new THREE.Group();
@@ -230,7 +233,8 @@ export class Viewer3D {
     }
 
     for (const k of this._modelCache.keys()) if (!used.has(k)) this._modelCache.delete(k);
-    this._updateSelection();
+    if (this.walker) this.walker.occluders = this._pickables.filter(o => ['wall', 'roof', 'room'].includes(o.userData.pick?.kind) && o.isMesh);
+    if (!this.walk.on) this._updateSelection();
   }
 
   _ownMesh(geo, material) { const m = new THREE.Mesh(geo, material); m.userData.own = true; m.castShadow = true; m.receiveShadow = true; return m; }
@@ -613,7 +617,7 @@ export class Viewer3D {
     el.style.touchAction = 'none';
     el.addEventListener('pointerdown', e => {
       this._down = { x: e.clientX, y: e.clientY, t: performance.now() };
-      if (this.walk.on) { this._look = { x: e.clientX, y: e.clientY, yaw: this.walk.yaw, pitch: this.walk.pitch }; return; }
+      if (this.walk.on) return;
       const sel = this.state.selectedId;
       if (!sel || e.button !== 0) return;
       const hit = this._pick(e);
@@ -629,11 +633,6 @@ export class Viewer3D {
       }
     });
     el.addEventListener('pointermove', e => {
-      if (this.walk.on && this._look) {
-        this.walk.yaw = this._look.yaw - (e.clientX - this._look.x) * 0.005;
-        this.walk.pitch = Math.max(-1.2, Math.min(1.2, this._look.pitch - (e.clientY - this._look.y) * 0.005));
-        return;
-      }
       if (!this._drag) return;
       const rect = el.getBoundingClientRect();
       const p = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
@@ -647,7 +646,7 @@ export class Viewer3D {
       this._updateSelection();
     });
     const up = e => {
-      if (this._look) { this._look = null; return; }
+      if (this.walk.on) return;
       if (this._drag) {
         const { node, moved } = this._drag;
         this._drag = null; this.controls.enabled = true;
@@ -663,9 +662,7 @@ export class Viewer3D {
       this.cb.onSelect?.(hit);
     };
     el.addEventListener('pointerup', up);
-    el.addEventListener('pointercancel', () => { this._drag = null; this._look = null; this.controls.enabled = !this.walk.on; });
-    window.addEventListener('keydown', e => { if (this.walk.on && !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) this.walk.keys.add(e.key.toLowerCase()); });
-    window.addEventListener('keyup', e => this.walk.keys.delete(e.key.toLowerCase()));
+    el.addEventListener('pointercancel', () => { this._drag = null; this.controls.enabled = !this.walk.on; });
   }
 
   _updateSelection() {
@@ -690,43 +687,22 @@ export class Viewer3D {
   select() { this._updateSelection(); }
 
   // ── Camera / walk mode ───────────────────────────────────────────────────
-  setWalk(on) {
+  /** Enter/leave walk-through mode. ui: the overlay element with the joystick & buttons. */
+  setWalk(on, ui, cb = {}) {
     this.walk.on = on;
     this.controls.enabled = !on;
+    this._selBox.visible = false;
     if (on) {
-      const fi = this.view.level === 'all' ? (this.state.activeFloor ?? 0) : this.view.level;
-      const f = this.state.floors[fi] || this.state.floors[0];
-      const r = f.rooms.find(q => !q.outdoor && q.width * q.height > 80) || f.rooms[0];
-      const x = r ? r.x + r.width / 2 : 0, z = r ? r.y + r.height / 2 : 0;
-      this._walkFloor = fi;
-      this.camera.position.set(x, f.elev + (r?.offset || 0) + 5.4, z);
-      this.walk.yaw = Math.PI; this.walk.pitch = 0;
-      this.camera.fov = 70; this.camera.updateProjectionMatrix();
+      this.camera.fov = 65; this.camera.updateProjectionMatrix();
+      this.buildScene();
+      this.walker = new Walker(this, ui, cb);
     } else {
+      this.walker?.dispose(); this.walker = null;
       this.camera.fov = 50; this.camera.updateProjectionMatrix();
+      this.buildScene();
       this.focusOnLayout();
     }
-    this.buildScene();
   }
-
-  _walkStep(dt) {
-    const k = this.walk.keys, pad = this.walk.pad;
-    const fwd = (k.has('w') || k.has('arrowup') || pad.has('f') ? 1 : 0) - (k.has('s') || k.has('arrowdown') || pad.has('b') ? 1 : 0);
-    const strafe = (k.has('d') || pad.has('r') ? 1 : 0) - (k.has('a') || pad.has('l') ? 1 : 0);
-    const turn = (k.has('arrowleft') || pad.has('tl') ? 1 : 0) - (k.has('arrowright') || pad.has('tr') ? 1 : 0);
-    this.walk.yaw += turn * dt * 1.6;
-    const sp = (k.has('shift') ? 14 : 7) * dt;
-    const dir = new THREE.Vector3(Math.sin(this.walk.yaw), 0, Math.cos(this.walk.yaw));
-    const right = new THREE.Vector3(-dir.z, 0, dir.x);
-    this.camera.position.addScaledVector(dir, fwd * sp).addScaledVector(right, strafe * sp);
-    const f = this.state.floors[this._walkFloor] || this.state.floors[0];
-    this.camera.position.y = f.elev + this._surface(f, this._walkFloor, this.camera.position.x, this.camera.position.z) + 5.4;
-    const look = new THREE.Vector3(
-      Math.sin(this.walk.yaw) * Math.cos(this.walk.pitch), Math.sin(this.walk.pitch), Math.cos(this.walk.yaw) * Math.cos(this.walk.pitch));
-    this.camera.lookAt(this.camera.position.clone().add(look));
-  }
-
-  setWalkFloor(fi) { this._walkFloor = fi; }
 
   _resize() {
     const w = this.container.clientWidth, h = this.container.clientHeight;
@@ -738,7 +714,7 @@ export class Viewer3D {
   _animate() {
     this._animId = requestAnimationFrame(() => this._animate());
     const dt = Math.min(0.05, this._clock.getDelta());
-    if (this.walk.on) this._walkStep(dt);
+    if (this.walker) this.walker.update(dt);
     else this.controls.update();
     this.renderer.render(this.scene, this.camera);
   }

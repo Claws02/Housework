@@ -477,7 +477,7 @@ function _buildFloorTabs() {
     b.addEventListener('click', () => {
       state.activeFloor = i; state.selectedId = null;
       _buildFloorTabs(); editor?.render(); _refreshProps(); _updateHint();
-      if (viewer) { viewer.setWalkFloor(i); viewer.select(); }
+      if (viewer) { viewer.select(); }
       _saveStorage();
     });
     el.appendChild(b);
@@ -507,7 +507,7 @@ function _build3DLevels() {
     b.title = v === 'all' ? 'Show the whole house' : `Show up to ${state.floors[v].name} (cut away above)`;
     b.addEventListener('click', () => {
       state.view3d.level = v === 'all' ? 'all' : Number(v);
-      if (v !== 'all') { state.activeFloor = Number(v); _buildFloorTabs(); viewer?.setWalkFloor(Number(v)); }
+      if (v !== 'all') { state.activeFloor = Number(v); _buildFloorTabs(); }
       _build3DLevels(); viewer?.refresh();
     });
     el.appendChild(b);
@@ -523,20 +523,22 @@ function _bind3DBar() {
     });
     _qs(`#v3-${k}`)?.classList.toggle('active', state.view3d[k]);
   }
-  _on('v3-walk', 'click', () => {
-    state.view3d.walk = !state.view3d.walk;
-    _qs('#v3-walk').classList.toggle('active', state.view3d.walk);
-    _qs('#walk-pad').style.display = state.view3d.walk ? 'grid' : 'none';
-    viewer?.setWalk(state.view3d.walk);
-    if (state.view3d.walk) _toast('🚶', 'Walk mode', 'WASD / arrows to move · drag to look · Shift = faster');
-  });
+  _on('v3-walk', 'click', () => _setWalk(true));
   _on('v3-home', 'click', () => viewer?.focusOnLayout());
-  document.querySelectorAll('#walk-pad button').forEach(b => {
-    const k = b.dataset.k;
-    const on = e => { e.preventDefault(); viewer?.walk.pad.add(k); };
-    const off = () => viewer?.walk.pad.delete(k);
-    b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
-  });
+}
+
+/** Walk-through: drive a little character around with a joystick (touch) or WASD. */
+function _setWalk(on) {
+  if (!viewer || state.view3d.walk === on) return;
+  state.view3d.walk = on;
+  state.selectedId = null; _refreshProps(); editor?.render();
+  document.body.classList.toggle('walking', on);
+  _qs('#walk-ui').style.display = on ? 'block' : 'none';
+  viewer.setWalk(on, _qs('#walk-ui'), { onExit: () => _setWalk(false) });
+  _qs('#status-text').textContent = on
+    ? 'Walk: left thumb = joystick (push far to run) · swipe anywhere else to look · WASD + drag on desktop · V camera · Esc exit'
+    : '3D: drag to orbit · right-drag / two fingers to pan · tap to select · drag a selected item to move it · , . rotate · Del removes';
+  if (on) _toast('🧍', 'Walk-through', window.matchMedia('(pointer: coarse)').matches ? 'Left thumb moves · swipe to look around' : 'WASD to move · drag to look · Shift runs · V switches camera');
 }
 
 // ── UI binding ─────────────────────────────────────────────────────────────
@@ -590,6 +592,7 @@ function _bindUI() {
 
 // ── Mode ───────────────────────────────────────────────────────────────────
 function _setMode(mode) {
+  if (mode !== '3d' && state.view3d.walk) _setWalk(false);
   state.mode = mode;
   _qs('#btn-mode-2d').classList.toggle('active', mode === '2d');
   _qs('#btn-mode-3d').classList.toggle('active', mode === '3d');
@@ -598,7 +601,6 @@ function _setMode(mode) {
   _qs('#view3d-bar').style.display    = mode === '3d' ? 'flex' : 'none';
   _qs('#tools-2d').style.display      = mode === '2d' ? 'flex'  : 'none';
   _qs('#zoom-controls').style.display = mode === '2d' ? 'flex' : 'none';
-  _qs('#walk-pad').style.display      = mode === '3d' && state.view3d.walk ? 'grid' : 'none';
   _qs('#status-text').textContent = mode === '3d'
     ? '3D: drag to orbit · right-drag / two fingers to pan · tap to select · drag a selected item to move it · , . rotate · Del removes'
     : '';

@@ -309,15 +309,39 @@ html, body {
 .v3-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 .v3-btn:hover:not(.active), .v3-seg button:hover:not(.active) { color: var(--text); border-color: var(--accent); }
 
-#walk-pad {
-  position: absolute; bottom: 40px; left: 16px; z-index: 12;
-  display: grid; grid-template-columns: repeat(3, 52px); gap: 6px;
+/* ── Walk-through overlay ── */
+#walk-ui { position: absolute; inset: 0; z-index: 30; }
+#walk-touch { position: absolute; inset: 0; touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
+#walk-touch:active { cursor: grabbing; }
+#joy-base {
+  position: absolute; left: calc(28px + env(safe-area-inset-left)); bottom: calc(34px + env(safe-area-inset-bottom));
+  width: 128px; height: 128px; border-radius: 50%;
+  background: rgba(15,22,35,.28); border: 2px solid rgba(255,255,255,.35);
+  box-shadow: 0 4px 18px rgba(0,0,0,.25); pointer-events: none; opacity: .6; transition: opacity .15s;
 }
-#walk-pad button {
-  height: 52px; border-radius: 12px; border: 1px solid var(--border); background: rgba(23,32,46,.85);
-  color: var(--text); font-size: 1.2rem; cursor: pointer; touch-action: none;
+#joy-base.active { opacity: 1; margin: -64px 0 0 -64px; }
+#joy-knob {
+  position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px;
+  border-radius: 50%; background: rgba(255,255,255,.85); box-shadow: 0 2px 10px rgba(0,0,0,.35);
 }
-#walk-pad button:active { background: var(--accent); }
+#walk-where {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%); pointer-events: none;
+  background: rgba(15,22,35,.7); color: #fff; font-size: .8rem; font-weight: 600;
+  padding: 6px 12px; border-radius: 999px; white-space: nowrap; backdrop-filter: blur(4px);
+}
+#walk-btns { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: 60%; }
+.walk-btn {
+  min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25);
+  background: rgba(15,22,35,.72); color: #fff; font-size: .78rem; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; gap: 6px; backdrop-filter: blur(4px);
+}
+.walk-btn:active { background: var(--accent); }
+.shirt-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--shirt, #2f6fb5); border: 2px solid #fff; }
+body.walking #view3d-bar, body.walking #budget-hud { display: none !important; }
+@media (max-width: 600px) {
+  #walk-where { top: auto; bottom: 14px; left: auto; right: 12px; transform: none; font-size: .72rem; }
+  .walk-btn { min-height: 36px; padding: 0 9px; font-size: .72rem; }
+}
 
 /* ── Extra prop controls ── */
 .pp-mt { margin-top: 6px; }
@@ -357,4 +381,9 @@ input[type=color] { width: 34px; height: 30px; border: 1px solid var(--border); 
   .ft-long { display: none; }
   .ft-short { display: inline; }
   #props-panel { left: 40px; width: auto; }
+}
+
+/* Full-screen walking on phones & tablets */
+@media (max-width: 900px), (pointer: coarse) {
+  body.walking #toolbar, body.walking #sidebar, body.walking #statusbar, body.walking #props-panel { display: none !important; }
 }
