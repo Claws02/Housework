@@ -49,5 +49,9 @@ the listing, with 6″ exterior walls, 4½″ partitions and a 9.6″ foundation
 field of view: about 103° in landscape and 54° in portrait, where the vertical is capped at 95° to avoid distortion. Oak boards are 7″ wide.
 Doors are 6′8″, counters 36″ and ceilings 8′.
 
+**Layout check.** `node tools/audit.mjs` (or `node tools/audit.mjs saved-house.json`) checks every item for overlaps,
+cutting into walls, blocking a doorway (2′6″ clear path; 1′ for closet doors), standing in front of windows, and catalog sizes
+against real-world standards. Run it after editing the preset; it exits non-zero when it finds problems.
+
 Dimensions are in feet. Plan +x is left → right and plan +y is rear → street. An item's front faces plan +y at
 rotation 0. The preset is approximate: the listing plan gives room sizes, not wall-to-wall positions.

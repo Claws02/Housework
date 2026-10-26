@@ -51,6 +51,12 @@ function compact(group) {
     if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
     if (!g.attributes.normal) g.computeVertexNormals();
     g.applyMatrix4(o.matrixWorld);
+    if (o.matrixWorld.determinant() < 0) {          // mirrored part: restore the triangle winding so it still faces out
+      for (const k of ['position', 'normal', 'uv']) {
+        const a = g.attributes[k], n = a.itemSize, arr = a.array;
+        for (let t = 0; t < a.count; t += 3) for (let c = 0; c < n; c++) { const i1 = (t + 1) * n + c, i2 = (t + 2) * n + c; const tmp = arr[i1]; arr[i1] = arr[i2]; arr[i2] = tmp; }
+      }
+    }
     if (Array.isArray(o.material)) {
       // multi-material mesh: split by group so each part joins its material's bucket
       const groups = g.groups.length ? g.groups : [{ start: 0, count: g.attributes.position.count, materialIndex: 0 }];
@@ -303,19 +309,20 @@ export class Viewer3D {
   }
 
   /** Material for one face of a wall, auto-picked from the room on that side unless overridden. */
-  _sideMat(floor, wall, side) {
-    const { key, color } = this._sideFinish(floor, wall, side);
+  _sideMat(floor, wall, side, at = 0.5) {
+    const { key, color } = this._sideFinish(floor, wall, side, at);
     return finishMaterial(WALL_FINISHES[key] || WALL_FINISHES.paint, color);
   }
 
   /** Which finish a wall face gets: explicit override, else the room on that side, else siding/paint. */
-  _sideFinish(floor, wall, side) {
+  /** at = position along the wall (0 = start, 1 = end) where the room on that side is sampled. */
+  _sideFinish(floor, wall, side, at = 0.5) {
     const fk = side === 'A' ? wall.finishA : wall.finishB;
     const ck = side === 'A' ? wall.colorA : wall.colorB;
     if (fk) return { key: fk, color: ck || '#ecebe6' };
     const dx = wall.x2 - wall.x1, dy = wall.y2 - wall.y1, len = Math.hypot(dx, dy) || 1;
     const nx = -dy / len, ny = dx / len, sgn = side === 'A' ? 1 : -1, off = (wall.thick ?? DEFAULT_WALL_T) / 2 + 0.4;
-    const mx = (wall.x1 + wall.x2) / 2 + nx * off * sgn, my = (wall.y1 + wall.y2) / 2 + ny * off * sgn;
+    const mx = wall.x1 + dx * at + nx * off * sgn, my = wall.y1 + dy * at + ny * off * sgn;
     // auto walls of a room: side A faces into that room, side B faces the neighbour
     const r = wall.roomId && side === 'A' ? floor.rooms.find(q => q.id === wall.roomId) : roomAt(floor, mx, my, true);
     if (r && r.id !== (side === 'B' ? wall.roomId : null)) return { key: r.wallFinish || 'paint', color: r.wallColor || '#ecebe6', room: r };
@@ -358,21 +365,35 @@ export class Viewer3D {
       if (cut) H = Math.min(H, 3.5);
       if (peel) H = Math.min(H, floor.height - (w.base || 0));
       const base = floor.elev + (w.base || 0);
-      const mA = this._sideMat(floor, w, 'A'), mB = this._sideMat(floor, w, 'B');
+      let mA, mB, finA, finB, baseA, baseB, crownA, crownB, mats;
       // 4" painted baseboard on interior painted faces
-      const finA = this._sideFinish(floor, w, 'A'), finB = this._sideFinish(floor, w, 'B');
-      const baseA = ['paint', 'beadboard'].includes(finA.key), baseB = ['paint', 'beadboard'].includes(finB.key);
+
       // crown molding where a painted face meets a flat ceiling (height relative to this wall's base)
       const crownAt = f => (f.room && f.room.ceiling !== false && !f.room.outdoor && ['paint', 'beadboard'].includes(f.key) && !cut && !peel)
         ? floor.height + (f.room.offset || 0) - (w.base || 0) : null;
-      const crownA = crownAt(finA), crownB = crownAt(finB);
-      const mats = [trim, trim, trim, trim, mA, mB];
+      // A wall can run past several rooms (the front wall: living room → bedroom). Split it wherever
+      // the room on either side changes so each stretch gets that room's paint, baseboard and crown.
+      const roomKey = u => ['A', 'B'].map(sd => { const f = this._sideFinish(floor, w, sd, u / L); return (f.room?.id ?? f.key) + f.color; }).join('|');
+      const breaks = [];
+      for (let u = 0.25, prev = roomKey(0.05); u < L; u += 0.25) { const k = roomKey(u); if (k !== prev) { breaks.push(u - 0.125); prev = k; } }
+      const useSide = u => {
+        const at = Math.min(1, Math.max(0, u / L));
+        finA = this._sideFinish(floor, w, 'A', at); finB = this._sideFinish(floor, w, 'B', at);
+        mA = this._sideMat(floor, w, 'A', at); mB = this._sideMat(floor, w, 'B', at);
+        baseA = ['paint', 'beadboard'].includes(finA.key); baseB = ['paint', 'beadboard'].includes(finB.key);
+        crownA = crownAt(finA); crownB = crownAt(finB);
+        mats = [trim, trim, trim, trim, mA, mB];
+      };
       const wg = new THREE.Group();
       wg.position.set(w.x1, base, w.y1);
       const tg = new THREE.Group();
       wg.rotation.y = -Math.atan2(dy, dx);
       const roofTop = u => this._roofAt(w.x1 + dx * u / L, w.y1 + dy * u / L) - base - 0.05;
       const piece = (u0, u1, v0, v1) => {
+        const cuts = [u0, ...breaks.filter(b => b > u0 + 0.02 && b < u1 - 0.02), u1];
+        for (let i = 0; i < cuts.length - 1; i++) { useSide((cuts[i] + cuts[i + 1]) / 2); pieceOne(cuts[i], cuts[i + 1], v0, v1); }
+      };
+      const pieceOne = (u0, u1, v0, v1) => {
         if (u1 - u0 < 0.02 || v1 - v0 < 0.02) return;
         // Clip under sloped roofs (upstairs walls in a Cape): sample the roof along the piece
         const N = Math.max(2, Math.ceil((u1 - u0) / 0.5));
@@ -450,9 +471,11 @@ export class Viewer3D {
     if (!(this.state.site?.roofs?.length)) return Infinity;
     let best = Infinity;
     for (const rf of this.state.site.roofs) {
-      const o = rf.overhang ?? 0.75;
-      if (x < rf.x - o || x > rf.x + rf.w + o || y < rf.y - o || y > rf.y + rf.d + o) continue;
-      const alongX = rf.axis !== 'y';
+      const o = rf.overhang ?? 0.75, alongX = rf.axis !== 'y';
+      // eaves overhang the walls below; the ridge ends stop at the footprint so a lower roof that
+      // butts into a taller wall (the dining addition) doesn't clip that wall
+      const ox = alongX ? 0 : o, oy = alongX ? o : 0;
+      if (x < rf.x - ox || x > rf.x + rf.w + ox || y < rf.y - oy || y > rf.y + rf.d + oy) continue;
       const s = (alongX ? rf.d : rf.w) / 2, k = (rf.ridge - rf.eave) / (s + o);
       const z = alongX ? y - (rf.y + rf.d / 2) : x - (rf.x + rf.w / 2);
       let h = rf.eave + (s + o - Math.abs(z)) * k;

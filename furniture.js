@@ -48,7 +48,7 @@ export const FURNITURE_CATALOG = [
     ['dining-6',     'Dining Table (6)',  6,   3.4, 2.5, '#5a3a22', 'diningTable','🍽', 600],
     ['dining-8',     'Dining Table (8)',  8,   3.6, 2.5, '#5a3a22', 'diningTable','🍽', 800],
     ['dining-chair', 'Dining Chair',      1.6, 1.7, 3.3, '#4a2e1a', 'diningChair','🪑', 120,  { color2: '#cfc7b8' }],
-    ['bar-stool',    'Bar Stool',         1.4, 1.4, 3.3, '#f3f1ec', 'barStool',   '🪑', 90],
+    ['bar-stool',    'Counter Stool',     1.4, 1.4, 3.05,'#f3f1ec', 'barStool',   '🪑', 90],   // 25" seat for a 36" counter
     ['hutch',        'China Hutch',       4,   1.6, 6.8, '#4a2e1a', 'hutch',      '🏺', 900],
     ['sideboard',    'Sideboard',         5,   1.5, 2.8, '#5a3a22', 'sideboard',  '🗄', 500],
     ['cube-shelf',   'Cube Organizer',    4.5, 1.2, 2.4, '#f3f1ec', 'cubeShelf',  '🧺', 120],
