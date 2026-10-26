@@ -37,6 +37,7 @@ Add `?view=3d` to the URL to open straight into 3D.
 | `walker.js` | Walk-through controller: joystick and look input, collision, stairs and floors, third- and first-person cameras |
 | `character.js` | The walking character model and its walk/run animation |
 | `lighting.js` | Physical sky, sun and time of day, sky-lit reflections, indoor fill, pooled fixture lights, and the AO/bloom render pipeline with quality levels |
+| `models_kl.js` | Kitchen & living room set matched to the listing photos: plush slipcovered sectional, tufted recliner, stone fireplace, dressed built-ins, shaker cabinets, appliances, stools, dome pendant, recessed cans, curtains, roman shade and counter decor |
 | `models3d.js` | ~80 procedural furniture and fixture builders, sized from each item's width/depth/height |
 | `textures.js` | Procedural canvas textures (oak, tile, siding, shingles, brick, stone, …) and finish catalogs |
 | `furniture.js` | Catalog: dimensions, default colors, model key, wall-opening and mount flags |

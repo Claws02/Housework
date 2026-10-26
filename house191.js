@@ -104,8 +104,8 @@ export function buildHouse191() {
   const gx0 = GAR.x0 - EXT / 2, gx1 = GAR.x0 + GAR.w + EXT / 2, gy0 = GAR.y0 - EXT / 2, gy1 = GAR.y0 + GAR.d + EXT / 2;
   const DOOR_X = 14.6;                                              // front door (into the living room, beside the stair)
 
-  room('Living Room', xL, yRow, xStairL - xL, yF - yRow, { wall: '#e6e4dd', color: '#3b82f6' });
-  room('Stairs', xStairL, yRow, xStairR - xStairL, yF - yRow, { wall: '#e6e4dd', color: '#94a3b8' });
+  room('Living Room', xL, yRow, xStairL - xL, yF - yRow, { wall: '#ebe1bf', color: '#3b82f6' });       // warm cream (photo)
+  room('Stairs', xStairL, yRow, xStairR - xStairL, yF - yRow, { wall: '#ebe1bf', color: '#94a3b8' });
   room('Closet', xStairR, yRow, xBedW - xStairR, yF - yRow, { wall: '#ecebe6', color: '#64748b' });
   room('Kitchen', 9.08, yB, xBath - 9.08, yRow - yB, { wall: '#d9dbdc', color: '#22c55e' });
   room('Breakfast Nook', xL, yB, 9.08 - xL, yRow - yB, { wall: '#d9dbdc', color: '#84cc16' });
@@ -177,15 +177,17 @@ export function buildHouse191() {
   item('builtins', 0.7, 13.3, { rot: -90, w: 3 });
   item('builtins', 0.7, 21.5, { rot: -90, w: 3 });
   item('tv', 1.75, 17.4, { rot: -90, w: 4.6, lift: 4.7 });
-  item('rug-8x10', 8.2, 17.6, { rot: 90, color: '#a7836a' });
-  item('sofa-l', 8.2, 18.7, { rot: 180, w: 9.6, d: 8 });
-  item('recliner', 5, 13.9, { rot: -60 });
-  item('ottoman', 7.6, 17.2, { label: 'Storage Ottoman', w: 2.6, d: 2.2 });
+  item('rug-8x10', 8.2, 17.6, { rot: 90, color: '#c2ab95' });
+  item('sofa-l', 8.2, 18.7, { rot: 180, w: 9.6, d: 8, color: '#cfc9bf', color2: '#6e7176' });
+  item('recliner', 5, 13.9, { rot: -60, color: '#5a4334' });
+  item('ottoman', 7.6, 17.2, { label: 'Storage Ottoman', w: 2.6, d: 2.2, color: '#d9d3c7' });
+  item('pouf', 2.6, 12.7, {});
+  item('wall-art', 11.8, 22.95, { rot: 180, w: 1.3, height: 1.7, lift: 4.3, color: '#7a9a6a', label: 'Botanical Print' });
   item('side-table', 2.7, 22.2, {});
   item('floor-lamp', 15.6, 14, {});
-  item('curtains', 3.6, 22.8, { color: '#8ba0b8' });
-  item('curtains', 8.6, 22.8, { color: '#8ba0b8' });
-  item('ceiling-light', 8.4, 17.3, {});
+  item('curtains', 3.6, 22.8, { height: 7.35 });
+  item('curtains', 8.6, 22.8, { height: 7.35 });
+  for (const x of [3.6, 8.2, 12.8]) for (const y of [14.4, 20.4]) item('recessed-light', x, y, {});
 
   // Kitchen (clear 9.08..25.08 × 0..11.25)
   item('fridge', 10.6, 1.35, { rot: 0 });
@@ -206,14 +208,26 @@ export function buildHouse191() {
   item('bar-stool', 15.5, 9.0, { rot: 180 });
   item('bar-stool', 17.4, 9.0, { rot: 180 });
   item('bar-stool', 19.3, 9.0, { rot: 180 });
-  item('pendant', 15.8, 6.5, {}); item('pendant', 19.0, 6.5, {});
+  item('pendant-dome', 15.8, 6.5, {}); item('pendant-dome', 19.0, 6.5, {});
+  for (const [x, y] of [[11.4, 3], [15.4, 2.8], [21, 2.8], [23.2, 7.6], [11.4, 9.6], [22.6, 10.4]]) item('recessed-light', x, y, {});
+  // counter & island dressing
+  item('fruit-bowl', 17.0, 6.6, { lift: 3 });
+  item('canisters', 13.4, 0.55, { lift: 3 });
+  item('coffee-maker', 15.9, 0.65, { lift: 3 });
+  item('paper-towel', 20.6, 0.5, { lift: 3 });
+  item('cutting-board', 23.2, 0.35, { lift: 3 });
+  item('knife-block', 24.35, 7.6, { rot: 90, lift: 3 });
+  item('plant-sm', 18.6, 0.05, { lift: 3.75, w: 0.6, d: 0.6, height: 0.9, label: 'Sill Plant' });
+  item('roman-shade', 18.6, 0.1, { w: 3.5, lift: 6.0, height: 1.1 });
   item('builtin-desk', 1.0, 5.6, { rot: -90, w: 9.4, d: 2 });
-  item('upper-cab', 0.55, 1.2, { rot: -90, w: 1.4, height: 3, lift: 4.3, label: 'Open Shelf' });
-  item('upper-cab', 0.55, 10.0, { rot: -90, w: 1.4, height: 3, lift: 4.3, label: 'Open Shelf' });
-  item('bar-stool', 2.8, 3.8, { rot: 90, height: 2.8 });
-  item('bar-stool', 2.8, 7.4, { rot: 90, height: 2.8 });
+  item('upper-cab', 0.55, 1.2, { rot: -90, w: 1.4, height: 3, lift: 4.3, label: 'Open Shelf', style: 'open' });
+  item('upper-cab', 0.55, 10.0, { rot: -90, w: 1.4, height: 3, lift: 4.3, label: 'Open Shelf', style: 'open' });
+  item('bar-stool', 2.6, 3.8, { rot: 90, height: 2.1, w: 1.3, d: 1.3, style: 'upholstered', color: '#8a8780', label: 'Desk Stool' });
+  item('bar-stool', 2.6, 7.4, { rot: 90, height: 2.1, w: 1.3, d: 1.3, style: 'upholstered', color: '#8a8780', label: 'Desk Stool' });
+  item('table-lamp', 0.75, 9.3, { lift: 2.6, w: 0.75, d: 0.75, height: 1.3, color: '#f4f2ec', label: 'Desk Lamp' });
+  item('vase-flowers', 0.8, 2.4, { lift: 2.6 });
   item('plant-sm', 6.6, 10.6, {});
-  item('ceiling-light', 4.5, 5.6, {});
+  for (const y of [3, 8.4]) item('recessed-light', 4.4, y, {});
 
   // Dining room (clear 0..14.42 × −13.92..−0.5), vaulted
   const dcy = (dyO + EXT / 2 + yB - EXT / 2) / 2;

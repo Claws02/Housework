@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CATALOG_BY_TYPE } from './furniture.js';
 import { buildModel } from './models3d.js';
+import './models_kl.js';           // registers the kitchen & living room set
 import { WALL_FINISHES, FLOOR_FINISHES, ROOF_FINISHES, finishMaterial, mat } from './textures.js';
 import { Walker } from './walker.js';
 import { Atmosphere, Pipeline, defaultQuality, isFixture } from './lighting.js';
@@ -42,6 +43,7 @@ function polyGeo(pts, holes = []) {
 function compact(group) {
   group.updateMatrixWorld(true);
   const buckets = new Map();
+  const put = (m, g) => { if (!buckets.has(m)) buckets.set(m, []); buckets.get(m).push(g); };
   group.traverse(o => {
     if (!o.isMesh) return;
     let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
@@ -49,9 +51,22 @@ function compact(group) {
     if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
     if (!g.attributes.normal) g.computeVertexNormals();
     g.applyMatrix4(o.matrixWorld);
+    if (Array.isArray(o.material)) {
+      // multi-material mesh: split by group so each part joins its material's bucket
+      const groups = g.groups.length ? g.groups : [{ start: 0, count: g.attributes.position.count, materialIndex: 0 }];
+      for (const gr of groups) {
+        const part = new THREE.BufferGeometry();
+        for (const k of ['position', 'normal', 'uv']) {
+          const a = g.attributes[k];
+          part.setAttribute(k, new THREE.BufferAttribute(a.array.slice(gr.start * a.itemSize, (gr.start + gr.count) * a.itemSize), a.itemSize));
+        }
+        put(o.material[gr.materialIndex], part);
+      }
+      g.dispose();
+      return;
+    }
     g.clearGroups();
-    if (!buckets.has(o.material)) buckets.set(o.material, []);
-    buckets.get(o.material).push(g);
+    put(o.material, g);
   });
   const out = new THREE.Group();
   for (const [m, list] of buckets) {
@@ -320,6 +335,7 @@ export class Viewer3D {
   _buildWalls(g, floor, fi, cut, peel) {
     const trim = mat('plain', this.state.site?.trimColor || '#f7f6f2', { roughness: 0.5 });
     const walls = this._allWalls(floor);
+    const trimAll = new THREE.Group();   // baseboards & crown for the whole floor, merged into one mesh below
     const joinExt = (w, i, end) => {   // extend into a corner shared with a later, non-parallel wall
       const px = end ? w.x2 : w.x1, py = end ? w.y2 : w.y1, ax = w.x2 - w.x1, ay = w.y2 - w.y1, al = Math.hypot(ax, ay) || 1;
       for (let j = i + 1; j < walls.length; j++) {
@@ -344,11 +360,16 @@ export class Viewer3D {
       const base = floor.elev + (w.base || 0);
       const mA = this._sideMat(floor, w, 'A'), mB = this._sideMat(floor, w, 'B');
       // 4" painted baseboard on interior painted faces
-      const baseA = ['paint', 'beadboard'].includes(this._sideFinish(floor, w, 'A').key);
-      const baseB = ['paint', 'beadboard'].includes(this._sideFinish(floor, w, 'B').key);
+      const finA = this._sideFinish(floor, w, 'A'), finB = this._sideFinish(floor, w, 'B');
+      const baseA = ['paint', 'beadboard'].includes(finA.key), baseB = ['paint', 'beadboard'].includes(finB.key);
+      // crown molding where a painted face meets a flat ceiling (height relative to this wall's base)
+      const crownAt = f => (f.room && f.room.ceiling !== false && !f.room.outdoor && ['paint', 'beadboard'].includes(f.key) && !cut && !peel)
+        ? floor.height + (f.room.offset || 0) - (w.base || 0) : null;
+      const crownA = crownAt(finA), crownB = crownAt(finB);
       const mats = [trim, trim, trim, trim, mA, mB];
       const wg = new THREE.Group();
       wg.position.set(w.x1, base, w.y1);
+      const tg = new THREE.Group();
       wg.rotation.y = -Math.atan2(dy, dx);
       const roofTop = u => this._roofAt(w.x1 + dx * u / L, w.y1 + dy * u / L) - base - 0.05;
       const piece = (u0, u1, v0, v1) => {
@@ -374,14 +395,22 @@ export class Viewer3D {
           m = this._ownMesh(uvBox(u1 - u0, v1 - v0, t, u0, v0 + (w.base || 0), L), mats);
           m.position.set((u0 + u1) / 2, (v0 + v1) / 2, 0);
         }
+        for (const [ch, sg] of [[crownA, 1], [crownB, -1]]) {
+          if (ch == null || clipped || v0 > ch - 0.35 || v1 < ch - 0.01) continue;
+          for (const [hh, dd, off] of [[0.3, 0.05, 0.3], [0.1, 0.11, 0.1], [0.07, 0.17, 0.07]]) {
+            const cm = this._ownMesh(new THREE.BoxGeometry(u1 - u0, hh, dd), trim);
+            cm.position.set((u0 + u1) / 2, ch - off + hh / 2 - 0.005, sg * (t / 2 + dd / 2)); cm.castShadow = false;
+            tg.add(cm);
+          }
+        }
         if (v0 < 0.01 && v1 > 0.5) for (const [on, sg] of [[baseA, 1], [baseB, -1]]) {
           if (!on) continue;
           const bb = this._ownMesh(new THREE.BoxGeometry(u1 - u0, 0.34, 0.045), trim);
           bb.position.set((u0 + u1) / 2, 0.17, sg * (t / 2 + 0.022)); bb.castShadow = false;
-          wg.add(bb);
+          tg.add(bb);
           const cap = this._ownMesh(new THREE.BoxGeometry(u1 - u0, 0.04, 0.06), trim);
           cap.position.set((u0 + u1) / 2, 0.355, sg * (t / 2 + 0.028)); cap.castShadow = false;
-          wg.add(cap);
+          tg.add(cap);
         }
         m.userData.pick = w.roomId ? { kind: 'room', id: w.roomId, floor: fi } : { kind: 'wall', id: w.id, floor: fi };
         this._pickables.push(m);
@@ -400,8 +429,20 @@ export class Viewer3D {
         cursor = Math.max(cursor, o.t1);
       }
       piece(cursor, L + e1, 0, H);
-      g.add(wg);
+      const pick = w.roomId ? { kind: 'room', id: w.roomId, floor: fi } : { kind: 'wall', id: w.id, floor: fi };
+      if (wg.children.length) {
+        const cw = compact(wg);
+        cw.traverse(o => { if (o.isMesh) { o.userData.own = true; o.userData.pick = pick; this._pickables.push(o); } });
+        for (const c of wg.children) { const i = this._pickables.indexOf(c); if (i >= 0) this._pickables.splice(i, 1); c.geometry.dispose(); }
+        g.add(cw);
+      }
+      tg.position.copy(wg.position); tg.rotation.copy(wg.rotation);
+      trimAll.add(tg);
     }
+    const merged = compact(trimAll);
+    merged.traverse(o => { if (o.isMesh) { o.castShadow = false; o.userData.own = true; } });
+    g.add(merged);
+    trimAll.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
   }
 
   /** Height of the lowest roof underside above plan point (x, y), or +∞. */
@@ -465,7 +506,9 @@ export class Viewer3D {
       node.position.set(it.x, this._itemY(floor, fi, it, cat), it.y);
       node.rotation.y = -it.rotation;
       node.userData.pick = { kind: 'item', id: it.id, floor: fi };
-      node.traverse(o => { if (o.isMesh) o.userData.pick = node.userData.pick; });
+      // small decor and ceiling fixtures don't need to cast sun shadows (halves their cost)
+      const noShadow = cat?.layer === 2 || cat?.mount === 'ceiling' || it.width * it.depth < 1.2;
+      node.traverse(o => { if (o.isMesh) { o.userData.pick = node.userData.pick; if (noShadow) o.castShadow = false; } });
       g.add(node);
       this._pickables.push(node);
       this._itemNodes.set(it.id, node);

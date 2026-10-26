@@ -2,6 +2,7 @@
 // Scene units are feet, so light intensities are tuned for feet rather than metres.
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
@@ -35,6 +36,8 @@ export function defaultQuality() {
 // Fixture models that emit light, with the bulb position (fraction of item height) and brightness.
 const FIXTURES = {
   ceilingLight: { at: 0.2, I: 38, dist: 22 },
+  recessed:     { dy: -0.4, I: 16, dist: 13 },     // 6" can: light just below the ceiling
+  pendantDome:  { at: 0.5, I: 24, dist: 16 },
   pendant:      { at: 0.45, I: 26, dist: 18 },
   lantern:      { at: 0.5, I: 20, dist: 18 },
   floorLamp:    { at: 0.88, I: 24, dist: 16 },
@@ -99,8 +102,9 @@ export class Atmosphere {
     const ground = new THREE.Mesh(new THREE.CircleGeometry(900, 24), new THREE.MeshBasicMaterial({ color: t.hemiGround }));
     ground.rotation.x = -Math.PI / 2; ground.position.y = -2;
     this._skyScene.add(ground);
-    this.scene.environment?.dispose?.();
-    this.scene.environment = this._pmrem.fromScene(this._skyScene, 0.02, 1, 2000).texture;
+    this._skyEnv?.dispose?.();
+    this._skyEnv = this._pmrem.fromScene(this._skyScene, 0.02, 1, 2000).texture;
+    this.scene.environment = this.indoor ? this._roomEnv() : this._skyEnv;
     this.applyEnv();
     this._applyLamps();
   }
@@ -124,7 +128,18 @@ export class Atmosphere {
     });
   }
 
-  setIndoor(v) { if (this.indoor === v) return; this.indoor = v; if (this.timeKey) this._applyFill(); }
+  /** Neutral interior reflections (walls, ceiling, windows) for metal & glass when inside. */
+  _roomEnv() {
+    if (!this._roomTex) this._roomTex = this._pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    return this._roomTex;
+  }
+
+  setIndoor(v) {
+    if (this.indoor === v) return;
+    this.indoor = v;
+    if (this._skyEnv) this.scene.environment = v ? this._roomEnv() : this._skyEnv;
+    if (this.timeKey) this._applyFill();
+  }
 
   get lampsLit() { return this.lightsOn ?? TIMES[this.timeKey]?.lights ?? false; }
 
@@ -152,7 +167,7 @@ export class Atmosphere {
     this.fixtures = list.map(({ node, model, h }) => {
       const f = FIXTURES[model];
       const p = node.getWorldPosition(new THREE.Vector3());
-      p.y += h * f.at;
+      p.y += f.dy ?? h * f.at;
       return { pos: p, I: f.I, dist: f.dist };
     });
     this._lampTimer = 0;

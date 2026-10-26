@@ -41,7 +41,8 @@ const M = {
   wood:     (c, r = 0.6) => mat('wood', c, { roughness: r }),
   fabric:   c => mat('fabric', c, { roughness: 0.95 }),
   leather:  c => mat('leather', c, { roughness: 0.45 }),
-  leaf:     c => mat('plain', c, { roughness: 0.85, flatShading: true }),
+  // leaf shades are quantised so a tree's random variations share a handful of materials (draw calls)
+  leaf:     c => { const q = new THREE.Color(c); for (const k of ['r', 'g', 'b']) q[k] = Math.round(q[k] * 14) / 14; return mat('plain', '#' + q.getHexString(), { roughness: 0.85, flatShading: true }); },
 };
 
 // ── Builder kit ─────────────────────────────────────────────────────────────
@@ -139,18 +140,35 @@ function legs4(k, w, d, h, rad, m, inset = 0.12, round = true) {
   }
 }
 
-/** Shaker-style door/drawer front on the +z face at depth z. */
+/** Shaker door/drawer front on the +z face at depth z: a 2¾" frame of stiles and rails standing
+ *  ¼" proud of a flat centre panel, with ⅛" reveals around the door and a bar pull. */
 function shaker(k, w, h, z, m, x, y, handle = 'bar', hm = M.nickel()) {
-  k.box(w - 0.02, h - 0.02, 0.06, m, x, y + 0.01, z + 0.03);
-  k.box(w - 0.32, h - 0.32, 0.03, m, x, y + 0.16, z + 0.065);   // recessed panel (thin raised for shading)
-  if (handle === 'bar')  k.box(0.04, Math.min(0.5, h * 0.4), 0.05, hm, x + w / 2 - 0.15, y + h - Math.min(0.5, h * 0.4) - 0.15, z + 0.1);
-  if (handle === 'pull') k.box(Math.min(0.4, w * 0.4), 0.04, 0.05, hm, x, y + h - 0.2, z + 0.1);
-  if (handle === 'knob') k.sph(0.05, hm, x + w / 2 - 0.15, y + h / 2, z + 0.1);
+  const W = w - 0.02, H = h - 0.02, f = Math.min(0.23, W * 0.22, H * 0.22), t = 0.05, p = 0.022;
+  k.box(W, H, t, m, x, y + 0.01, z + t / 2);                                   // panel + back
+  k.box(f, H, p, m, x - W / 2 + f / 2, y + 0.01, z + t + p / 2);               // stiles
+  k.box(f, H, p, m, x + W / 2 - f / 2, y + 0.01, z + t + p / 2);
+  k.box(W - 2 * f, f, p, m, x, y + 0.01, z + t + p / 2);                       // rails
+  k.box(W - 2 * f, f, p, m, x, y + 0.01 + H - f, z + t + p / 2);
+  const zz = z + t + p;
+  if (handle === 'bar') {                                                      // 5" bar pull on standoffs
+    const L = Math.min(0.42, h * 0.35), hx = x + W / 2 - f / 2, hy = y + h - L - 0.18;
+    k.cyl(0.017, 0.017, L, hm, hx, hy, zz + 0.07, 8);
+    for (const e of [0.04, L - 0.04]) k.box(0.025, 0.025, 0.07, hm, hx, hy + e - 0.0125, zz + 0.035);
+  }
+  if (handle === 'pull') {
+    const L = Math.min(0.42, w * 0.4);
+    k.rod(x - L / 2, zz + 0.07, x + L / 2, zz + 0.07, y + h - 0.2, 0.017, hm);
+    for (const e of [-L / 2 + 0.04, L / 2 - 0.04]) k.box(0.025, 0.025, 0.07, hm, x + e, y + h - 0.2125, zz + 0.035);
+  }
+  if (handle === 'knob') { k.cyl(0.018, 0.018, 0.05, hm, x + W / 2 - f / 2, y + h / 2, zz + 0.025, 8).rotation.x = Math.PI / 2; k.sph(0.05, hm, x + W / 2 - f / 2, y + h / 2, zz + 0.07); }
 }
 
 function drawerFront(k, w, h, z, m, x, y, hm = M.nickel()) {
-  k.box(w - 0.03, h - 0.03, 0.06, m, x, y + 0.015, z + 0.03);
-  k.box(Math.min(0.45, w * 0.35), 0.04, 0.05, hm, x, y + h / 2 - 0.02, z + 0.09);
+  if (h > 0.4) { shaker(k, w, h, z, m, x, y, 'none', hm); }                     // shaker-profile drawer
+  else k.box(w - 0.03, h - 0.03, 0.06, m, x, y + 0.015, z + 0.03);             // slab drawer
+  const L = Math.min(0.5, w * 0.35), zz = z + (h > 0.4 ? 0.072 : 0.06);
+  k.rod(x - L / 2, zz + 0.065, x + L / 2, zz + 0.065, y + h / 2, 0.017, hm);
+  for (const e of [-L / 2 + 0.04, L / 2 - 0.04]) k.box(0.025, 0.025, 0.065, hm, x + e, y + h / 2 - 0.0125, zz + 0.032);
 }
 
 function books(k, x0, x1, y, z, depth, rnd, maxH = 0.85) {
@@ -299,56 +317,6 @@ B.floorMirror = (k, w, d, h, c) => {
 };
 
 // Living
-function sofaBody(k, w, d, h, c, x0 = 0, z0 = 0, { armL = true, armR = true, n = 0, m } = {}) {
-  const fab = m || M.fabric(c), arm = 0.55, seatH = 1.45, backT = 0.7;
-  k.rbox(w, seatH - 0.75, d, 0.1, fab, x0, 0.25, z0);                    // base
-  k.box(w - 0.2, 0.25, d - 0.2, M.black(), x0, 0, z0);                     // plinth/legs shadow
-  k.rbox(w, h - 0.25, backT, 0.2, fab, x0, 0.25, z0 - d / 2 + backT / 2);  // back
-  if (armL) k.rbox(arm, 2.1 - 0.25, d, 0.2, fab, x0 - w / 2 + arm / 2, 0.25, z0);
-  if (armR) k.rbox(arm, 2.1 - 0.25, d, 0.2, fab, x0 + w / 2 - arm / 2, 0.25, z0);
-  const inner = w - (armL ? arm : 0) - (armR ? arm : 0);
-  const xs = x0 - w / 2 + (armL ? arm : 0);
-  n = n || Math.max(1, Math.round(inner / 2.6));
-  const cw = inner / n;
-  for (let i = 0; i < n; i++) {
-    const cx = xs + cw * i + cw / 2;
-    cushion(k, cw - 0.04, 0.55, d - backT - 0.05, fab, cx, seatH - 0.55, z0 + backT / 2);
-    cushion(k, cw - 0.06, h - seatH - 0.15, 0.55, fab, cx, seatH, z0 - d / 2 + backT + 0.2).rotation.x = -0.12;
-  }
-}
-
-B.sofa = (k, w, d, h, c, c2, it) => {
-  sofaBody(k, w, d, h, c, 0, 0, {});
-  const rnd = seeded(it.id);
-  for (const sx of [-1, 1]) k.rbox(1.3, 1.2, 0.35, 0.15, M.fabric(c2), sx * (w / 2 - 1.3), 1.4, -d / 2 + 1.0).rotation.set(-0.25, sx * -0.3 * rnd(), 0);
-};
-
-B.sectional = (k, w, d, h, c, c2, it) => {
-  // Back run along the rear (w wide, 3.2 deep) + return along the left side out to d.
-  const sd = Math.min(3.4, d);
-  sofaBody(k, w - sd, sd, h, c, sd / 2, -d / 2 + sd / 2, { armL: false });
-  k.group(s => sofaBody(s, d - sd, sd, h, c, 0, 0, { armR: false }), -w / 2 + sd / 2, 0, sd / 2, Math.PI / 2);
-  // corner block
-  const fab = M.fabric(c);
-  k.rbox(sd, 0.7, sd, 0.1, fab, -w / 2 + sd / 2, 0.25, -d / 2 + sd / 2);
-  k.rbox(sd, h - 0.25, 0.7, 0.2, fab, -w / 2 + sd / 2, 0.25, -d / 2 + 0.35);
-  k.rbox(0.7, h - 0.25, sd, 0.2, fab, -w / 2 + 0.35, 0.25, -d / 2 + sd / 2);
-  cushion(k, sd - 0.75, 0.55, sd - 0.75, fab, -w / 2 + sd / 2 + 0.35, 0.9, -d / 2 + sd / 2 + 0.35);
-  const rnd = seeded(it.id);
-  for (let i = 0; i < 4; i++) k.rbox(1.25, 1.15, 0.35, 0.15, M.fabric(i % 2 ? c2 : '#9a9a9a'), -w / 2 + 2 + i * (w - 3) / 3.5, 1.4, -d / 2 + 0.95).rotation.set(-0.25, (rnd() - 0.5) * 0.5, 0);
-};
-
-B.armchair = (k, w, d, h, c) => sofaBody(k, w, d, h, c, 0, 0, { n: 1 });
-B.recliner = (k, w, d, h, c) => {
-  const lm = M.leather(c);
-  sofaBody(k, w, d, h, c, 0, 0, { n: 1, m: lm });
-  k.rbox(w - 1.2, 0.5, 0.4, 0.15, lm, 0, 1.4, -d / 2 + 0.9);   // headrest pillow
-};
-
-B.ottoman = (k, w, d, h, c) => {
-  k.rbox(w, h - 0.2, d, 0.2, M.fabric(c), 0, 0.2, 0);
-  legs4(k, w, d, 0.2, 0.06, M.wood('#4a3524'), 0.25);
-};
 
 B.coffeeTable = (k, w, d, h, c) => {
   const m = M.wood(c);
@@ -385,14 +353,6 @@ B.mediaFireplace = (k, w, d, h, c) => {    // electric-fireplace TV console (pri
   for (const sx of [-1, 1]) shaker(k, w * 0.25, h - 0.55, d / 2, m, sx * w * 0.36, 0.35, 'knob');
 };
 
-B.tv = (k, w, d, h, c, c2, it) => {
-  const panelH = w * 0.57, onStand = (it.lift ?? 0) < 1.5;
-  const y0 = onStand ? 0.25 : 0;
-  k.box(w, panelH, 0.12, M.black(), 0, y0, 0);
-  k.box(w - 0.1, panelH - 0.1, 0.01, M.screen(), 0, y0 + 0.05, 0.065);
-  if (onStand) { k.box(w * 0.3, 0.04, 0.7, M.black(), 0, 0, 0); k.box(0.2, 0.25, 0.1, M.black(), 0, 0, -0.05); }
-};
-
 B.bookshelf = (k, w, d, h, c, c2, it) => {
   const m = c.toLowerCase() > '#d' ? M.plain(c, 0.5) : M.wood(c), rnd = seeded(it.id);
   k.box(w, h, 0.05, m, 0, 0, -d / 2 + 0.025);
@@ -403,38 +363,6 @@ B.bookshelf = (k, w, d, h, c, c2, it) => {
     k.box(w, 0.08, d, m, 0, y, 0);
     if (i < n) books(k, -w / 2 + 0.1, w / 2 - 0.1, y + 0.08, 0, d * 0.8, rnd, Math.min(0.9, (h - 0.08) / n - 0.2));
   }
-};
-
-B.builtins = (k, w, d, h, c, c2, it) => {   // white built-in cabinet + open shelves (living room)
-  const m = M.plain(c, 0.45), rnd = seeded(it.id);
-  const baseH = 2.6;
-  k.box(w, baseH, d, m, 0, 0, 0);
-  const n = Math.max(1, Math.round(w / 1.6));
-  for (let i = 0; i < n; i++) shaker(k, w / n - 0.04, baseH - 0.35, d / 2, m, -w / 2 + (i + 0.5) * w / n, 0.3, 'knob');
-  k.box(w + 0.05, 0.1, d + 0.05, m, 0, baseH, 0);
-  const sd = d * 0.7, sz = -d / 2 + sd / 2;
-  k.box(w, h - baseH, 0.05, m, 0, baseH, -d / 2 + 0.025);
-  for (const sx of [-1, 1]) k.box(0.08, h - baseH, sd, m, sx * (w / 2 - 0.04), baseH, sz);
-  const shelves = Math.max(2, Math.round((h - baseH) / 1.25));
-  for (let i = 1; i <= shelves; i++) {
-    const y = baseH + i * (h - baseH - 0.1) / shelves;
-    k.box(w, 0.08, sd, m, 0, y, sz);
-    if (i < shelves) {
-      if (rnd() < 0.55) books(k, -w / 2 + 0.15, w / 2 * (0.2 + rnd() * 0.6), y + 0.08, sz, sd * 0.8, rnd, 0.8);
-      else { k.cyl(0.18, 0.12, 0.5, M.plain(['#e8e0d0', '#7a96b0', '#d9a066'][(rnd() * 3) | 0], 0.3), (rnd() - 0.5) * w * 0.5, y + 0.08, sz, 14); }
-    }
-  }
-  k.box(w + 0.2, 0.25, d * 0.75, m, 0, h - 0.25, -d / 2 + d * 0.375);    // crown
-};
-
-B.fireplace = (k, w, d, h, c, c2) => {      // stacked-stone surround, black firebox, wood mantel
-  const st = mat('stone', c, { roughness: 0.95, tile: 4 });
-  k.box(w, h, d, st, 0, 0, 0);
-  k.box(w * 0.5, Math.min(2.6, h * 0.55), 0.1, M.black(), 0, 0.5, d / 2 - 0.04);
-  k.box(w * 0.42, Math.min(2.2, h * 0.47), 0.04, mat('plain', '#2a1a10', { emissive: '#3a1206', emissiveIntensity: 0.6 }), 0, 0.6, d / 2 + 0.01);
-  for (let i = 0; i < 6; i++) k.box(w * 0.04, Math.min(2.2, h * 0.47), 0.04, M.iron(), -w * 0.2 + i * w * 0.08, 0.6, d / 2 + 0.05);  // screen
-  k.box(w + 0.4, 0.4, 1.4, mat('concrete', '#5b5753', { roughness: 0.9 }), 0, 0, d / 2 + 0.5);    // hearth
-  k.box(w + 0.3, 0.25, 0.7, M.wood(c2), 0, Math.min(h - 0.25, 4.2), d / 2 + 0.2);                 // mantel
 };
 
 B.floorLamp = (k, w, d, h) => {
@@ -509,18 +437,6 @@ B.diningChair = (k, w, d, h, c, c2) => {
   k.box(w * 0.3, h - seatH - 0.4, 0.05, m, 0, seatH + 0.12, -d / 2 + 0.08);   // vase splat
 };
 
-B.barStool = (k, w, d, h, c) => {
-  const m = M.plain(c, 0.45), seatH = h - 0.9;
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    const leg = k.cyl(0.05, 0.05, seatH, m, sx * (w / 2 - 0.12), 0, sz * (d / 2 - 0.12), 8);
-    leg.rotation.set(sz * 0.06, 0, -sx * 0.06);
-  }
-  k.box(w - 0.3, 0.05, 0.05, m, 0, seatH * 0.35, d / 2 - 0.15);
-  k.cyl(w / 2 - 0.05, w / 2 - 0.05, 0.13, M.wood('#b98b5a'), 0, seatH, 0, 20);
-  for (let i = -2; i <= 2; i++) k.cyl(0.03, 0.03, 0.8, m, i * w * 0.14, seatH + 0.12, -d / 2 + 0.2, 6);
-  k.box(w - 0.15, 0.1, 0.08, m, 0, h - 0.1, -d / 2 + 0.2);
-};
-
 B.hutch = (k, w, d, h, c, c2, it) => {
   const m = M.wood(c), rnd = seeded(it.id);
   const lowH = 2.7;
@@ -567,43 +483,6 @@ B.cubeShelf = (k, w, d, h, c, c2, it) => {  // white cube organizer with wicker 
 };
 
 // Kitchen
-B.baseCab = (k, w, d, h, c, c2, it) => {
-  const m = M.plain(c, 0.45), top = it.pattern === 'butcher' ? M.wood('#b98b5a', 0.5) : mat('concrete', c2, { roughness: 0.25 });
-  k.box(w, 0.35, d - 0.2, M.black(), 0, 0, -0.1);
-  k.box(w, h - 0.45, d - 0.05, m, 0, 0.35, -0.025);
-  k.box(w + 0.02, 0.12, d + 0.04, top, 0, h - 0.12, 0.02);
-  const n = Math.max(1, Math.round(w / 1.5)), dw = w / n;
-  for (let i = 0; i < n; i++) {
-    const x = -w / 2 + dw * i + dw / 2;
-    drawerFront(k, dw - 0.03, 0.5, d / 2 - 0.05, m, x, h - 0.7);
-    shaker(k, dw - 0.03, h - 1.12, d / 2 - 0.05, m, x, 0.38, 'bar');
-  }
-};
-
-B.sinkCab = (k, w, d, h, c, c2, it) => {
-  B.baseCab(k, w, d, h, c, c2, it);
-  k.box(Math.min(2.6, w - 0.4), 0.02, d * 0.6, M.steel(), 0, h + 0.001, 0);
-  k.box(Math.min(2.4, w - 0.6), 0.015, d * 0.5, mat('plain', '#5a5e63', { roughness: 0.3, metalness: 0.8 }), 0, h + 0.01, 0);
-  k.cyl(0.05, 0.06, 0.12, M.nickel(), 0, h, -d / 2 + 0.35, 10);
-  k.cyl(0.035, 0.035, 1.1, M.nickel(), 0, h + 0.1, -d / 2 + 0.35, 10);
-  k.torus(0.3, 0.035, M.nickel(), 0, h + 1.2, -d / 2 + 0.65, Math.PI).rotation.y = Math.PI / 2;
-};
-
-B.upperCab = (k, w, d, h, c, c2, it) => {
-  const m = M.plain(c, 0.45);
-  k.box(w, h, d, m, 0, 0, 0);
-  k.box(w + 0.06, 0.18, d + 0.06, m, 0, h - 0.18, 0);
-  const n = Math.max(1, Math.round(w / 1.5)), dw = w / n;
-  for (let i = 0; i < n; i++) {
-    const x = -w / 2 + dw * i + dw / 2;
-    if (it.glass) {
-      k.box(dw - 0.04, h - 0.25, 0.06, m, x, 0.03, d / 2);
-      k.box(dw - 0.3, h - 0.55, 0.02, M.glass(), x, 0.18, d / 2 + 0.04);
-      k.box(dw - 0.04, 0.04, 0.02, m, x, h * 0.5, d / 2 + 0.05);
-    } else shaker(k, dw - 0.04, h - 0.25, d / 2, m, x, 0.03, 'bar');
-  }
-};
-
 B.pantry = (k, w, d, h, c) => {
   const m = M.plain(c, 0.45);
   k.box(w, 0.35, d - 0.2, M.black(), 0, 0, -0.1);
@@ -615,88 +494,11 @@ B.pantry = (k, w, d, h, c) => {
   }
 };
 
-B.range = (k, w, d, h) => {
-  const s = M.steel();
-  k.box(w, h - 0.05, d - 0.1, s, 0, 0, -0.05);
-  k.box(w - 0.02, 0.05, d - 0.15, M.blackGl(), 0, h - 0.05, -0.05);
-  for (const [bx, bz, r] of [[-0.6, -0.5, 0.35], [0.6, -0.5, 0.3], [-0.6, 0.4, 0.3], [0.6, 0.4, 0.38]])
-    k.torus(r * w / 2.5, 0.02, mat('plain', '#3a3a3a', { roughness: 0.5 }), bx * w / 2.5, h + 0.005, bz * d / 2.2).rotation.x = Math.PI / 2;
-  k.box(w, 0.5, 0.15, s, 0, h, -d / 2 + 0.05);
-  for (let i = 0; i < 5; i++) k.cyl(0.06, 0.06, 0.06, M.black(), -w / 2 + 0.35 + i * (w - 0.7) / 4, h - 0.2, d / 2 - 0.02, 12).rotation.x = Math.PI / 2;
-  k.box(w - 0.2, h - 0.85, 0.05, s, 0, 0.35, d / 2 - 0.08);
-  k.box(w - 0.8, (h - 0.85) * 0.5, 0.02, M.blackGl(), 0, 0.35 + (h - 0.85) * 0.3, d / 2 - 0.04);
-  k.rod(-w / 2 + 0.25, d / 2 + 0.08, w / 2 - 0.25, d / 2 + 0.08, h - 0.6, 0.035, M.chrome());
-  k.box(w, 0.3, d - 0.1, M.black(), 0, 0, -0.05);
-};
-
-B.hood = (k, w, d, h) => {
-  const s = M.steel();
-  const sk = k.cyl(0.5, 1, 0.9, s, 0, 0, 0, 4); sk.rotation.y = Math.PI / 4; sk.scale.set(w * 0.7, 1, d * 0.7);
-  k.box(w * 0.35, h - 0.9, d * 0.45, s, 0, 0.9, -d / 2 + d * 0.225);
-};
-
-B.fridge = (k, w, d, h) => {
-  const s = M.steel();
-  k.box(w, h, d - 0.15, s, 0, 0, -0.075);
-  const split = h * 0.62;
-  for (const sx of [-1, 1]) {
-    k.box(w / 2 - 0.02, h - split - 0.03, 0.12, s, sx * w / 4, split + 0.02, d / 2 - 0.08);
-    k.cyl(0.03, 0.03, 1.6, M.chrome(), sx * 0.12, split + 0.5, d / 2 + 0.06, 8);
-  }
-  k.box(w - 0.04, split - 0.05, 0.12, s, 0, 0.05, d / 2 - 0.08);
-  k.rod(-w / 2 + 0.4, d / 2 + 0.08, w / 2 - 0.4, d / 2 + 0.08, split - 0.3, 0.03, M.chrome());
-  k.box(0.3, 0.45, 0.02, M.blackGl(), -w / 4, split + 1.2, d / 2 - 0.01);
-};
-
-B.dishwasher = (k, w, d, h) => {
-  const s = M.steel();
-  k.box(w, h - 0.35, d - 0.1, s, 0, 0.35, -0.05);
-  k.box(w, 0.35, d - 0.2, M.black(), 0, 0, -0.1);
-  k.rod(-w / 2 + 0.2, d / 2 + 0.06, w / 2 - 0.2, d / 2 + 0.06, h - 0.35, 0.025, M.chrome());
-};
-
 B.microwave = (k, w, d, h) => {
   const s = M.steel();
   k.box(w, h, d, s, 0, 0, 0);
   k.box(w * 0.68, h * 0.75, 0.02, M.blackGl(), -w * 0.12, h * 0.12, d / 2);
   k.box(w * 0.2, h * 0.75, 0.02, M.black(), w * 0.36, h * 0.12, d / 2);
-};
-
-B.island = (k, w, d, h, c, c2, it) => {
-  // Cabinets face +z (work side); seating overhang on -z.
-  const m = M.plain(c, 0.45), top = it.pattern === 'butcher' ? M.wood('#b98b5a', 0.5) : mat('concrete', c2, { roughness: 0.22 });
-  const cd = d - 1.0;
-  k.box(w - 0.1, 0.35, cd - 0.15, M.black(), 0, 0, 0.5);
-  k.box(w - 0.1, h - 0.48, cd, m, 0, 0.35, 0.5 - 0.0);
-  k.box(w + 0.1, 0.15, d, top, 0, h - 0.15, 0);
-  const n = Math.max(1, Math.round(w / 1.6)), dw = (w - 0.1) / n;
-  for (let i = 0; i < n; i++) {
-    const x = -w / 2 + 0.05 + dw * i + dw / 2;
-    drawerFront(k, dw - 0.03, 0.5, 0.5 + cd / 2, m, x, h - 0.7);
-    shaker(k, dw - 0.03, h - 1.15, 0.5 + cd / 2, m, x, 0.38, 'bar');
-  }
-  for (let i = 0; i < n; i++) k.box(dw - 0.1, h - 0.6, 0.04, m, -w / 2 + 0.05 + dw * i + dw / 2, 0.35, 0.5 - cd / 2 - 0.02);  // back panels
-  for (const sx of [-1, 1]) k.box(0.15, h - 0.15, 0.15, m, sx * (w / 2 - 0.12), 0, -d / 2 + 0.15);   // corbels / posts
-};
-
-B.builtinDesk = (k, w, d, h, c, c2) => {
-  const m = M.plain(c, 0.45), top = M.wood(c2, 0.5);
-  const pw = Math.min(1.6, w * 0.22);
-  for (const sx of [-1, 1]) {
-    const x = sx * (w / 2 - pw / 2);
-    k.box(pw, h - 0.12, d - 0.05, m, x, 0, -0.025);
-    for (let i = 0; i < 3; i++) drawerFront(k, pw - 0.04, (h - 0.25) / 3, d / 2 - 0.05, m, x, 0.05 + i * (h - 0.25) / 3);
-  }
-  k.box(w - 2 * pw, 0.4, d - 0.05, m, 0, h - 0.52, -0.025);
-  k.box(w + 0.02, 0.12, d + 0.04, top, 0, h - 0.12, 0.02);
-};
-
-B.pendant = (k, w, d, h, c, c2, it, ctx) => {
-  const drop = Math.max(0.2, (ctx.ceil ?? 8) - (it.lift ?? 5) - h);
-  k.cyl(0.012, 0.012, drop, M.black(), 0, h, 0, 6);
-  k.cyl(0.25, 0.25, 0.08, M.nickel(), 0, h + drop - 0.08, 0, 14);
-  k.sph(w / 2, mat('plain', '#e9eef0', { roughness: 0.05, transparent: true, opacity: 0.45 }), 0, h / 2, 0, 1, h / w, 1, 20);
-  k.sph(0.12, M.bulb(), 0, h * 0.45, 0);
 };
 
 B.ceilingLight = (k, w, d, h) => {
@@ -1051,12 +853,6 @@ B.wallArt = (k, w, d, h, c, c2, it) => {
   }
 };
 
-B.curtains = (k, w, d, h, c) => {
-  k.rod(-w / 2 - 0.2, 0, w / 2 + 0.2, 0, h, 0.03, M.iron());
-  const m = M.fabric(c);
-  for (const sx of [-1, 1]) for (let i = 0; i < 5; i++) k.box(0.18, h - 0.1, 0.08, m, sx * (w / 2 - 0.1 - i * 0.16), 0, (i % 2) * 0.06);
-};
-
 // Utility / basement
 B.boiler = (k, w, d, h, c) => {           // blue cast-iron boiler + burner
   const m = M.plain(c, 0.4, { metalness: 0.2 });
@@ -1313,6 +1109,8 @@ B.fence = (k, w, d, h, c) => {
 };
 
 export const BUILDERS = B;
+// Shared with models_kl.js (kitchen & living room set)
+export { Kit, M, lampMat, seeded, geo, r3, shaker, drawerFront, books, legs4, pot, foliage, cushion };
 
 /**
  * Build a THREE.Group for a furniture item.

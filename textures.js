@@ -276,6 +276,104 @@ const DRAW = {
   leather(ctx, S, c, r) { ctx.fillStyle = c; ctx.fillRect(0, 0, S, S); noise(ctx, S, 18, r); },
 
   _overlay(ctx, S, r) { noise(ctx, S, 10, r); },
+
+  quartz(ctx, S, c, r) {        // white quartz / marble-look with soft gray veining
+    ctx.fillStyle = c; ctx.fillRect(0, 0, S, S);
+    for (let k = 0; k < 60; k++) {           // cloudy base
+      ctx.fillStyle = `rgba(${r() < 0.5 ? '120,120,125' : '255,255,255'},${r() * 0.05})`;
+      ctx.beginPath(); ctx.arc(r() * S, r() * S, 20 + r() * 90, 0, 6.28); ctx.fill();
+    }
+    for (let v = 0; v < 7; v++) {            // wandering veins, drawn on all 4 wraps so the tile repeats
+      const pts = []; let x = r() * S, y = -20, a = 0.3 + r() * 0.9;
+      while (y < S + 20) { pts.push([x, y]); a += (r() - 0.5) * 0.5; x += Math.cos(a) * 12; y += Math.abs(Math.sin(a)) * 12 + 4; }
+      const wdt = 0.6 + r() * 2.2, al = 0.12 + r() * 0.22;
+      for (const [ox, oy] of [[0, 0], [S, 0], [-S, 0]]) {
+        ctx.strokeStyle = `rgba(110,112,118,${al})`; ctx.lineWidth = wdt;
+        ctx.beginPath(); pts.forEach(([px, py], i) => i ? ctx.lineTo(px + ox, py + oy) : ctx.moveTo(px + ox, py + oy)); ctx.stroke();
+        ctx.strokeStyle = `rgba(150,152,158,${al * 0.35})`; ctx.lineWidth = wdt * 5;
+        ctx.beginPath(); pts.forEach(([px, py], i) => i ? ctx.lineTo(px + ox, py + oy) : ctx.moveTo(px + ox, py + oy)); ctx.stroke();
+      }
+    }
+    noise(ctx, S, 6, r);
+  },
+
+  brushed(ctx, S, c, r) {       // brushed stainless: fine horizontal streaks
+    ctx.fillStyle = c; ctx.fillRect(0, 0, S, S);
+    for (let k = 0; k < 900; k++) {
+      ctx.fillStyle = `rgba(${r() < 0.5 ? '0,0,0' : '255,255,255'},${r() * 0.022})`;
+      ctx.fillRect(0, r() * S, S, 0.5 + r() * 0.8);
+    }
+    noise(ctx, S, 3, r);
+  },
+
+  leafprint(ctx, S, c, r) {     // white cotton with trailing blue leaves (living room curtains)
+    ctx.fillStyle = '#f3f1ea'; ctx.fillRect(0, 0, S, S);
+    for (let v = 0; v < 6; v++) {
+      const x0 = (v + 0.3 * r()) * S / 6;
+      ctx.strokeStyle = shade(c, 0.8); ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x0, 0); ctx.bezierCurveTo(x0 + 30, S * 0.3, x0 - 30, S * 0.7, x0, S); ctx.stroke();
+      for (let y = 10; y < S; y += 26 + r() * 10) {
+        const t = y / S, cx = x0 + Math.sin(t * Math.PI * 2) * 12, side = (y / 26 | 0) % 2 ? 1 : -1;
+        ctx.save(); ctx.translate(cx, y); ctx.rotate(side * (0.7 + r() * 0.4));
+        ctx.fillStyle = r() < 0.65 ? c : shade(c, 1.35);
+        ctx.beginPath(); ctx.ellipse(side * 16, 0, 15, 6, 0, 0, 6.28); ctx.fill(); ctx.restore();
+      }
+    }
+    noise(ctx, S, 8, r);
+  },
+
+  damask(ctx, S, c, r) {        // patterned throw-pillow fabric: medallions on a light ground
+    ctx.fillStyle = shade(c, 1.55); ctx.fillRect(0, 0, S, S);
+    const n = 4, t = S / n;
+    for (let i = 0; i <= n; i++) for (let j = 0; j <= n; j++) {
+      const x = i * t + (j % 2) * t / 2, y = j * t;
+      ctx.fillStyle = c;
+      for (let p = 0; p < 6; p++) {
+        ctx.save(); ctx.translate(x, y); ctx.rotate(p * Math.PI / 3);
+        ctx.beginPath(); ctx.ellipse(0, t * 0.18, t * 0.07, t * 0.17, 0, 0, 6.28); ctx.fill(); ctx.restore();
+      }
+      ctx.fillStyle = shade(c, 0.7); ctx.beginPath(); ctx.arc(x, y, t * 0.06, 0, 6.28); ctx.fill();
+    }
+    DRAW.fabric(ctx, S, 'rgba(0,0,0,0)', r);
+  },
+
+  knit(ctx, S, c, r) {          // chunky cable knit (throws, poufs)
+    ctx.fillStyle = shade(c, 0.85); ctx.fillRect(0, 0, S, S);
+    const cols = 8, rows = 16, cw = S / cols, rh = S / rows;
+    for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
+      for (const sd of [-1, 1]) {
+        const g = ctx.createLinearGradient(0, j * rh, 0, j * rh + rh);
+        g.addColorStop(0, shade(c, 1.12)); g.addColorStop(1, shade(c, 0.88));
+        ctx.fillStyle = g;
+        ctx.save(); ctx.translate(i * cw + cw / 2 + sd * cw * 0.2, j * rh + rh / 2); ctx.rotate(sd * 0.5);
+        ctx.beginPath(); ctx.ellipse(0, 0, cw * 0.2, rh * 0.62, 0, 0, 6.28); ctx.fill(); ctx.restore();
+      }
+    }
+    noise(ctx, S, 10, r);
+  },
+
+  wicker(ctx, S, c, r) {        // basket weave
+    ctx.fillStyle = shade(c, 0.6); ctx.fillRect(0, 0, S, S);
+    const n = 16, t = S / n;
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      const hz = (i + j) % 2;
+      ctx.fillStyle = shade(c, 0.85 + r() * 0.3);
+      if (hz) ctx.fillRect(i * t + 1, j * t + t * 0.2, t - 2, t * 0.6); else ctx.fillRect(i * t + t * 0.2, j * t + 1, t * 0.6, t - 2);
+    }
+    noise(ctx, S, 14, r);
+  },
+
+  butcher(ctx, S, c, r) {       // edge-grain butcher block: narrow staves of varying tone
+    let x = 0;
+    while (x < S) {
+      const w = 18 + r() * 22;
+      ctx.fillStyle = shade(c, 0.86 + r() * 0.26); ctx.fillRect(x, 0, w, S);
+      for (let g = 0; g < 5; g++) { ctx.fillStyle = `rgba(80,45,15,${r() * 0.08})`; ctx.fillRect(x + r() * w, 0, 1 + r() * 2, S); }
+      ctx.fillStyle = 'rgba(60,35,10,0.18)'; ctx.fillRect(x, 0, 1, S);
+      x += w;
+    }
+    noise(ctx, S, 8, r);
+  },
 };
 
 // ── Finish catalogs (shown in the properties panel) ─────────────────────────
@@ -332,7 +430,8 @@ export function texture(name, color = '#cccccc', tile = 4, size = 512, tileV = t
 // How strongly each texture's light/dark detail reads as surface relief (0 = flat).
 const BUMP = { oak: 1.6, tile: 2.4, mosaic: 2, subway: 2.2, carpet: 1.4, concrete: 0.9, deck: 3, grass: 1.2, asphalt: 1.2,
   gravel: 3, siding: 5, shingle: 4, brick: 4.5, stone: 6, beadboard: 3, framing: 3.5, plywood: 0.8, wood: 0.9, fabric: 0.6,
-  leather: 1.2, paint: 0.35, rug: 1, stripes: 0.4, floral: 0.4 };
+  leather: 1.2, paint: 0.35, rug: 1, stripes: 0.4, floral: 0.4,
+  quartz: 0.25, brushed: 0.08, leafprint: 0.35, damask: 0.8, knit: 4, wicker: 4, butcher: 0.9 };
 
 /** Tangent-space normal map derived from the colour texture's luminance (Sobel, wraps at the edges). */
 export function normalMap(name, color = '#cccccc', tile = 4, size = 512, tileV = tile) {
@@ -381,7 +480,7 @@ export function finishMaterial(finish, color, opts = {}) {
   return m;
 }
 
-const MODEL_TILE = { wood: 3, fabric: 1.5, leather: 2.5, concrete: 4, stone: 4, brick: 4, subway: 4, mosaic: 2, siding: 4,
+const MODEL_TILE = { quartz: 4, brushed: 2, leafprint: 2.5, damask: 1.2, knit: 1.2, wicker: 0.8, butcher: 3, wood: 3, fabric: 1.5, leather: 2.5, concrete: 4, stone: 4, brick: 4, subway: 4, mosaic: 2, siding: 4,
   shingle: 6, deck: 4, plywood: 4, beadboard: 4, stripes: 3, floral: 3, rug: 1, carpet: 3, tile: 4 };
 
 /** Free-form material helper for furniture: kind = texture drawer name or 'plain'. */
