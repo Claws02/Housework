@@ -4,6 +4,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CATALOG_BY_TYPE } from './furniture.js';
 import { buildModel } from './models3d.js';
 import './models_kl.js';           // registers the kitchen & living room set
+import './models_dream.js';        // registers the dream-house yard, systems, theater & gym set
 import { WALL_FINISHES, FLOOR_FINISHES, ROOF_FINISHES, finishMaterial, mat } from './textures.js';
 import { Walker } from './walker.js';
 import { Atmosphere, Pipeline, defaultQuality, isFixture } from './lighting.js';
@@ -264,6 +265,14 @@ export class Viewer3D {
     for (const f of bs) for (const r of f.rooms) { mnX = Math.min(mnX, r.x); mxX = Math.max(mxX, r.x + r.width); mnY = Math.min(mnY, r.y); mxY = Math.max(mxY, r.y + r.height); }
     if (isFinite(mnX) && mnX > lot.x && mxX < lot.x + lot.w && mnY > lot.y && mxY < lot.y + lot.h)
       shape.holes.push(new THREE.Path([[mnX, -mnY], [mnX, -mxY], [mxX, -mxY], [mxX, -mnY]].map(([a, b]) => new THREE.Vector2(a, b))));
+    // in-ground items (pools) open the lawn over their footprint
+    const gf = this.state.floors[site?.groundFloor ?? -1];
+    for (const it of gf?.furniture || []) if (CATALOG_BY_TYPE[it.type]?.groundHole) {
+      const c = Math.abs(Math.cos(it.rotation)), sn = Math.abs(Math.sin(it.rotation));
+      const hw = (it.width * c + it.depth * sn) / 2, hd = (it.width * sn + it.depth * c) / 2;
+      if (it.x - hw > lot.x && it.x + hw < lot.x + lot.w && it.y - hd > lot.y && it.y + hd < lot.y + lot.h)
+        shape.holes.push(new THREE.Path([[it.x - hw, -(it.y - hd)], [it.x - hw, -(it.y + hd)], [it.x + hw, -(it.y + hd)], [it.x + hw, -(it.y - hd)]].map(([a, b]) => new THREE.Vector2(a, b))));
+    }
     const geo = new THREE.ShapeGeometry(shape);
     const fin = FLOOR_FINISHES.grass;
     const m = this._ownMesh(geo, finishMaterial({ ...fin, tile: 10 }, fin.color));
@@ -327,7 +336,7 @@ export class Viewer3D {
     const r = wall.roomId && side === 'A' ? floor.rooms.find(q => q.id === wall.roomId) : roomAt(floor, mx, my, true);
     if (r && r.id !== (side === 'B' ? wall.roomId : null)) return { key: r.wallFinish || 'paint', color: r.wallColor || '#ecebe6', room: r };
     if (wall.ext || wall.roomId) {
-      const k = floor.extFinish || 'siding';
+      const k = floor.extFinish || this.state.site?.extFinish || 'siding';
       return { key: k, color: k === 'concrete' ? '#b3afa7' : (this.state.site?.sidingColor || '#5f7180') };
     }
     return { key: 'paint', color: '#ecebe6' };
@@ -471,6 +480,7 @@ export class Viewer3D {
     if (!(this.state.site?.roofs?.length)) return Infinity;
     let best = Infinity;
     for (const rf of this.state.site.roofs) {
+      if (rf.clipWalls === false) continue;      // porch / garage roofs that butt into taller walls
       const o = rf.overhang ?? 0.75, alongX = rf.axis !== 'y';
       // eaves overhang the walls below; the ridge ends stop at the footprint so a lower roof that
       // butts into a taller wall (the dining addition) doesn't clip that wall
@@ -582,7 +592,7 @@ export class Viewer3D {
     const shingle = finishMaterial(fin, rf.color || '#4d4b4a');
     const under = mat('plain', '#f3f2ee', { roughness: 0.95, emissive: '#e9e4da', emissiveIntensity: 0.4 });   // painted ceiling side
     const trim = mat('plain', this.state.site?.trimColor || '#f7f6f2', { roughness: 0.5 });
-    const sidingF = WALL_FINISHES.siding, sidingC = this.state.site?.sidingColor || '#5f7180';
+    const sidingF = WALL_FINISHES[this.state.site?.extFinish] || WALL_FINISHES.siding, sidingC = this.state.site?.sidingColor || '#5f7180';
     const siding = finishMaterial(sidingF, sidingC);
     const paint = finishMaterial(WALL_FINISHES.paint, '#ecebe6');
     const slabMats = [trim, trim, shingle, under, trim, trim];
@@ -648,6 +658,20 @@ export class Viewer3D {
       const f = this._ownMesh(new THREE.BoxGeometry(Lr + 2 * o, 0.5, 0.12), trim);
       f.position.set(0, E + 0.05, sg * (s + o)); g.add(f);
     }
+    }
+    // rooftop solar on the rear (plan −y) slope: rows of 3'4" × 5'6" modules, set 4" off the shingles
+    if (rf.solar && !only && alongX) {
+      const sm = mat('solar', '#1b2a44', { roughness: 0.18, metalness: 0.3, tile: 3.33, tileV: 5.5 }), fr = mat('plain', '#9aa1a8', { roughness: 0.4, metalness: 0.7 });
+      const pw = 3.33, pl = 5.5, slopeRun = Math.cos(ang) * pl, rows = Math.max(1, Math.floor((s - 1.5) / (slopeRun + 0.05)));
+      const cols = Math.floor((Lr - 6) / pw), x0 = -cols * pw / 2;
+      const cs = Math.cos(ang);
+      for (let r = 0; r < rows; r++) {
+        const zHi = 1.5 + r * (slopeRun + 0.05), zMid = zHi + slopeRun / 2;   // distance from the ridge line
+        const yMid = E + (s + o - zMid) * k + (T + 0.33) / cs;
+        const m = this._ownMesh(uvBox(cols * pw, 0.12, pl), [fr, fr, sm, fr, fr, fr]);
+        m.position.set(x0 + cols * pw / 2, yMid, -zMid); m.rotation.x = -ang; m.castShadow = false;
+        g.add(m);
+      }
     }
     // gable ends
     const yWall = E + o * k;

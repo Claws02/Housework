@@ -658,13 +658,23 @@ function casing(k, w, h, t, m, sill = true) {
 }
 
 function doorLeaf(k, w, h, m, style, glass) {
-  k.box(w, h, 0.15, m, w / 2, 0, 0);
+  // solid slab, or a frame around the glass so you can see through it
+  const frame = (x0, x1, y0, y1) => {
+    k.box(w, y0, 0.15, m, w / 2, 0, 0);
+    k.box(w, h - y1, 0.15, m, w / 2, y1, 0);
+    k.box(x0, y1 - y0, 0.15, m, x0 / 2, y0, 0);
+    k.box(w - x1, y1 - y0, 0.15, m, (w + x1) / 2, y0, 0);
+  };
+  if (style === 'lite') frame(0.3, w - 0.3, h * 0.5, h * 0.92);
+  else if (style === 'glass') frame(0.2, w - 0.2, 0.3, h - 0.3);
+  else k.box(w, h, 0.15, m, w / 2, 0, 0);
   if (style === 'lite') {   // 9-lite upper glass + 2 lower panels (photo: side entry doors)
-    k.box(w - 0.6, h * 0.42, 0.16, M.glass(), w / 2, h * 0.5, 0);
+    k.box(w - 0.6, h * 0.42, 0.04, M.glass(), w / 2, h * 0.5, 0);
     for (let i = 1; i < 3; i++) { k.box(0.05, h * 0.42, 0.18, m, 0.3 + i * (w - 0.6) / 3, h * 0.5, 0); k.box(w - 0.6, 0.05, 0.18, m, w / 2, h * 0.5 + i * h * 0.14, 0); }
     for (const sx of [0.27, 0.73]) for (const sz of [-1, 1]) k.box(w * 0.32, h * 0.3, 0.02, m, w * sx, 0.4, sz * 0.08);
   } else if (style === 'glass') {
-    k.box(w - 0.4, h - 0.6, 0.16, glass, w / 2, 0.3, 0);
+    k.box(w - 0.4, h - 0.6, 0.04, glass, w / 2, 0.3, 0);
+    for (let i = 1; i < 5; i++) k.box(w - 0.4, 0.05, 0.17, m, w / 2, 0.3 + i * (h - 0.6) / 5, 0);   // muntins
   } else {                  // 2-panel shaker
     for (const sz of [-1, 1]) { k.box(w - 0.7, h * 0.42, 0.02, m, w / 2, h * 0.5, sz * 0.08); k.box(w - 0.7, h * 0.3, 0.02, m, w / 2, 0.45, sz * 0.08); }
   }

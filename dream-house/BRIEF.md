@@ -56,9 +56,16 @@ using the designer clearances the layout audit checks (36" walkways, 42" kitchen
 | Mechanical + storage | — | |
 
 ### Outside
-- 2-car garage, ~24' × 28' with storage wall; EV charger.
+- 2-car garage, ~24' × 26' with storage wall; Level 2 EV charger.
 - Workshop shed in the backyard, ~12' × 16' with power.
-- (Still to decide: porch, deck, patio, yard features.)
+- Wood patio deck to start (off the nook & kitchen), fire pit, in-ground pool, hot tub.
+- 6' privacy fence around the backyard, with room for a play lawn.
+
+### Light, ceilings, systems (answered)
+- Primary bedroom gets **morning sun** (east). Other rooms: no preference yet.
+- **9' ceilings** on the 1st floor; beam placement undecided.
+- **Fireplace in the den.**
+- Solar, heat pumps, standby generator, smart home. A spot for the **litter box**.
 
 **Totals:** ~3,800 sq ft above ground + ~1,000 sq ft finished basement → 5 bedrooms, 3½ baths.
 
@@ -75,13 +82,54 @@ Ballpark only. Prices change, and this is not a quote.
   5. A **semi-custom/modular** builder for the shell, custom finishes inside.
 - We can model the full dream version *and* a trimmed version and walk both.
 
+## Draft 1 (in the app: 🏡 → Dream House, or open with `?house=dream`)
+Main block 58' × 38' plus a 16' × 14' sunroom and a 24' × 26' garage. Street = north.
+
+**Orientation.** Backyard faces south (sun all day, solar on the south roof slope). Primary suite on the
+east end for morning sun; garage on the west end blocks the hot evening sun. The 3D view's 🌅 Morning,
+☀ Day and 🌇 Evening buttons match this (morning from the east, evening from the west).
+
+**1st floor (9' ceilings).**
+- Front porch → foyer with coat closet; the stair climbs east along the office wall.
+- Formal dining (16' × 16', table for 10), open to the hall and the foyer.
+- Office (12' × 12') with a door, at the front (quiet side).
+- Guest suite (13' × 16') + accessible bath (roll-in shower) + closet. Doubles as the aging-in-place suite.
+- Kitchen (20' × 18'): 36" range, 4' sink under the window, built-in fridge, 10' × 4' island with 5 stools,
+  dome pendants, beams. Open to the nook, cased opening to the den, plus two **interior windows into the den**.
+- Breakfast nook with a slider to the patio deck. Walk-in pantry + butler's pantry (coffee bar) to the hall.
+- Den (20' × 18'): stone fireplace with TV over it, built-ins, sectional, 7.1 surround (towers, sub, ceiling
+  speakers), beams. French doors to the sunroom.
+- Sunroom (16' × 14'): glass on three sides, beams, slider to the deck; its roof is the primary's private deck.
+- Mudroom from the garage: locker wall with shoe bins and bench, **litter-box cabinet**, smart-home panel,
+  back door to the yard. Powder room off the hall.
+
+**2nd floor (8' ceilings).**
+- Primary suite (east): bedroom 17' × 18' with the king bed facing the morning windows, French doors to the
+  private deck; vestibule; 8' × 14' walk-in closet; bath with a **7' × 4½' shower with two heads**, double
+  vanity, soaking tub, linen tower.
+- Laundry (7' × 7½') off the landing: shares a wall only with the walk-in closet (none with the bedroom),
+  linen closet beyond.
+- Bunk room (14' × 15'), bedrooms 3 and 4 (13'–14' × 15'), each with a reach-in closet; hall bath with double
+  vanity, tub and linen cabinet; a loft (games/movies) and a kids' study.
+
+**Basement.** Theme room (28' × 22', theater by default: screen, 8 recliners on two rows, surround),
+home gym (16' × 18', rubber floor, mirror wall), game lounge, craft/flex room, mechanical (heat-pump air
+handler, heat-pump water heater, panel, solar batteries, network rack), storage.
+
+**Outside.** Patio deck (42' × 20') with dining for 6 and a grill; 16' × 32' pool on a stone deck with
+loungers; hot tub; gravel fire-pit circle; play lawn; 12' × 16' workshop shed; 6' privacy fence; two heat-pump
+condensers and a standby generator on the garage side, outside the fence. A bay beyond the back lot line
+stands in for "near the water".
+
+**Defaults I picked where you said "unsure"** (easy to change):
+- Beams in the den, sunroom and kitchen.
+- Office at the front; guest suite on the 1st floor (east, front).
+- Fire pit on the west side of the yard, pool centred behind the house, shed in the far corner.
+
 ## Still to answer
-- Outdoor living: covered porch / screened porch / deck / patio / outdoor kitchen / fire pit / pool or hot tub?
-- Yard: garden, lawn, play area, privacy?
-- Light: which rooms get morning vs evening sun? What view matters most (from kitchen? bed?)
-- Ceilings: 9' first floor? Vaulted family room or sunroom? Where do the beams go?
-- Fireplace(s): where, wood or gas?
-- Energy/tech: solar, heat pumps, generator, smart home, EV charger level?
 - Top 3 must-haves and top 3 nice-to-haves (this drives what survives if we trim)
 - Dislikes from past homes
-- Dogs: dog wash in the mudroom? fenced yard? cat litter nook?
+- Dog wash in the mudroom? Gate locations in the fence?
+- Fireplace: wood or gas? A second one (primary or sunroom)?
+- What view matters most (from the kitchen? the bed?)
+- Theme-room setups to model next (game room, birthday room)

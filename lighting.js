@@ -13,6 +13,8 @@ import { LAMP_MATS } from './models3d.js';
 // ── Time of day ──────────────────────────────────────────────────────────────
 // elevation/azimuth in degrees; azimuth 0 = from +z (the street side), 90 = from +x.
 export const TIMES = {
+  morning: { label: '🌅 Morning', elev: 14, azim: 100, sun: '#ffd2a0', sunI: 2.3, hemiSky: '#e3dcd2', hemiGround: '#6b5f52', hemiI: 0.5, env: 0.6, exposure: 1.0, inHemi: 0.8, inEnv: 0.2,
+             sky: { turbidity: 6, rayleigh: 1.8, mie: 0.005, mieG: 0.84 }, fog: '#e6d2bf', lights: false },
   day:     { label: '☀ Day',     elev: 50, azim: 210, sun: '#fff1dc', sunI: 2.5, hemiSky: '#d6e6fa', hemiGround: '#8a7f70', hemiI: 0.7, env: 0.75, exposure: 0.95, inHemi: 1.25, inEnv: 0.3,
              sky: { turbidity: 3.5, rayleigh: 1.1, mie: 0.003, mieG: 0.78 }, fog: '#c4d8ea', lights: false },
   evening: { label: '🌇 Evening', elev: 7,  azim: 255, sun: '#ffb46b', sunI: 2.2, hemiSky: '#f2c9a6', hemiGround: '#5b4b40', hemiI: 0.42, env: 0.5, exposure: 1.05, inHemi: 0.45, inEnv: 0.12,

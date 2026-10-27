@@ -163,6 +163,48 @@ const DRAW = {
     noise(ctx, S, 30, r);
   },
 
+  cedar(ctx, S, c, r) {         // weathered cedar shake siding: staggered shingles, 5" exposure
+    const n = 8, h = S / n;
+    ctx.fillStyle = shade(c, 0.55); ctx.fillRect(0, 0, S, S);
+    for (let j = 0; j < n; j++) {
+      let x = -(r() * 30);
+      while (x < S) {
+        const w = 18 + r() * 34, f = 0.88 + r() * 0.22;
+        const g = ctx.createLinearGradient(0, j * h, 0, j * h + h);
+        g.addColorStop(0, shade(c, f * 0.86)); g.addColorStop(0.25, shade(c, f)); g.addColorStop(1, shade(c, f * 0.93));
+        ctx.fillStyle = g; ctx.fillRect(x + 1, j * h + 3, w - 2, h - 3);
+        ctx.fillStyle = 'rgba(0,0,0,0.06)';
+        for (let k = 0; k < 3; k++) ctx.fillRect(x + 3 + r() * (w - 6), j * h + 4, 1, h - 6);   // grain
+        x += w;
+      }
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, j * h, S, 3);
+    }
+    noise(ctx, S, 5, r);
+  },
+
+  water(ctx, S, c, r) {         // open water seen from a distance: soft ripples
+    ctx.fillStyle = c; ctx.fillRect(0, 0, S, S);
+    for (let i = 0; i < 260; i++) {
+      const x = r() * S, y = r() * S, w = 10 + r() * 40;
+      ctx.fillStyle = r() < 0.5 ? 'rgba(255,255,255,0.10)' : 'rgba(0,20,40,0.12)';
+      ctx.fillRect(x, y, w, 2);
+      if (x + w > S) ctx.fillRect(x - S, y, w, 2);
+    }
+    noise(ctx, S, 6, r);
+  },
+
+  solar(ctx, S, c, r) {         // one 60-cell module: dark cells, silver busbars, white gaps
+    ctx.fillStyle = '#d9dde2'; ctx.fillRect(0, 0, S, S);
+    const cols = 6, rows = 10, m = S * 0.02, cw = (S - 2 * m) / cols, ch = (S - 2 * m) / rows;
+    for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
+      ctx.fillStyle = shade(c, 0.85 + r() * 0.2);
+      ctx.fillRect(m + i * cw + 1.5, m + j * ch + 1.5, cw - 3, ch - 3);
+      ctx.fillStyle = 'rgba(200,210,225,0.35)';
+      for (let b = 1; b < 3; b++) ctx.fillRect(m + i * cw + 1.5, m + j * ch + b * ch / 3, cw - 3, 1);
+    }
+    ctx.strokeStyle = '#9aa1a8'; ctx.lineWidth = m; ctx.strokeRect(m / 2, m / 2, S - m, S - m);
+  },
+
   brick(ctx, S, c, r) {
     const rows = 12, bh = S / rows, bw = bh * 2.6;
     ctx.fillStyle = '#b8b0a4'; ctx.fillRect(0, 0, S, S);
@@ -389,6 +431,7 @@ export const WALL_FINISHES = {
   concrete:  { label: 'Concrete',         tex: 'concrete',  tile: 8,  rough: 1.0  },
   framing:   { label: 'Exposed framing',  tex: 'framing',   tile: 4,  rough: 0.9  },
   plywood:   { label: 'Plywood',          tex: 'plywood',   tile: 4,  rough: 0.9  },
+  cedar:     { label: 'Cedar shingles',   tex: 'cedar',     tile: 3.3, rough: 0.9 },
 };
 
 export const FLOOR_FINISHES = {
@@ -402,6 +445,9 @@ export const FLOOR_FINISHES = {
   asphalt:  { label: 'Asphalt',        tex: 'asphalt',  tile: 6,  rough: 1.0,  color: '#4a4a4c' },
   gravel:   { label: 'Gravel',         tex: 'gravel',   tile: 4,  rough: 1.0,  color: '#9a948a' },
   stone:    { label: 'Flagstone',      tex: 'tile',     tile: 4,  rough: 0.9,  color: '#8b8378' },
+  rubber:   { label: 'Rubber gym floor', tex: 'concrete', tile: 4, rough: 0.9, color: '#3a3b3d' },
+  sand:     { label: 'Sand',           tex: 'gravel',   tile: 2,  rough: 1.0,  color: '#d8c8a2' },
+  water:    { label: 'Water',          tex: 'water',    tile: 30, rough: 0.12, color: '#3f6e86' },
 };
 
 export const ROOF_FINISHES = {
@@ -431,7 +477,7 @@ export function texture(name, color = '#cccccc', tile = 4, size = 512, tileV = t
 const BUMP = { oak: 1.6, tile: 2.4, mosaic: 2, subway: 2.2, carpet: 1.4, concrete: 0.9, deck: 3, grass: 1.2, asphalt: 1.2,
   gravel: 3, siding: 5, shingle: 4, brick: 4.5, stone: 6, beadboard: 3, framing: 3.5, plywood: 0.8, wood: 0.9, fabric: 0.6,
   leather: 1.2, paint: 0.35, rug: 1, stripes: 0.4, floral: 0.4,
-  quartz: 0.25, brushed: 0.08, leafprint: 0.35, damask: 0.8, knit: 4, wicker: 4, butcher: 0.9 };
+  cedar: 2.2, water: 0.3, solar: 0.3, quartz: 0.25, brushed: 0.08, leafprint: 0.35, damask: 0.8, knit: 4, wicker: 4, butcher: 0.9 };
 
 /** Tangent-space normal map derived from the colour texture's luminance (Sobel, wraps at the edges). */
 export function normalMap(name, color = '#cccccc', tile = 4, size = 512, tileV = tile) {
@@ -490,12 +536,12 @@ export function mat(kind, color, extra = {}) {
   const p = { color: kind === 'plain' ? color : '#ffffff', roughness: 0.7, metalness: 0, ...extra };
   if (kind !== 'plain') {
     // model UVs are in feet on box-shaped parts; tile = feet per texture repeat
-    const tile = extra.tile ?? MODEL_TILE[kind] ?? 2;
-    p.map = texture(kind, color, tile, 256);
-    const nm = normalMap(kind, color, tile, 256);
+    const tile = extra.tile ?? MODEL_TILE[kind] ?? 2, tileV = extra.tileV ?? tile;
+    p.map = texture(kind, color, tile, 256, tileV);
+    const nm = normalMap(kind, color, tile, 256, tileV);
     if (nm) { p.normalMap = nm; p.normalScale = new THREE.Vector2(0.6, 0.6); }
   }
-  delete p.tile;
+  delete p.tile; delete p.tileV;
   const m = new THREE.MeshStandardMaterial(p);
   _matCache.set(key, m);
   return m;

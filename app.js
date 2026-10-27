@@ -3,6 +3,7 @@ import { Viewer3D }          from './viewer3d.js';
 import { FURNITURE_CATALOG, CATALOG_BY_TYPE } from './furniture.js';
 import { WALL_FINISHES, FLOOR_FINISHES, ROOF_FINISHES } from './textures.js';
 import { buildHouse191 }     from './house191.js';
+import { buildDreamHouse }   from './houseDream.js';
 import { TIMES, QUALITY }   from './lighting.js';
 import { sounds }            from './sounds.js';
 
@@ -742,33 +743,48 @@ function _loadStorage() {
   if (!d) {
     let legacy = null;
     try { legacy = JSON.parse(localStorage.getItem(LEGACY_KEY) || 'null'); } catch (_) {}
-    d = legacy && (legacy.rooms?.length || legacy.walls?.length || legacy.furniture?.length) ? _fromAny(legacy) : buildHouse191();
+    d = legacy && (legacy.rooms?.length || legacy.walls?.length || legacy.furniture?.length) ? _fromAny(legacy) : buildDreamHouse();
   }
+  const want = new URLSearchParams(location.search).get('house');   // ?house=dream or ?house=191 opens that preset
+  if (PRESETS[want]) d = PRESETS[want].build();
   _apply(_fromAny(d));
 }
 /** In-app confirmation (browser confirm() dialogs are blocked when the app is embedded). */
-function _ask(message, yesLabel, onYes) {
+/** choices: [[label, onClick], …] — the last one is the default (highlighted, focused). */
+function _ask(message, yesLabel, onYes, choices = [[yesLabel, onYes]]) {
   _qs('#ask-dialog')?.remove();
   const d = document.createElement('div');
   d.id = 'ask-dialog'; d.className = 'ask-dialog';
-  d.innerHTML = `<div class="ask-box" role="dialog" aria-modal="true"><p></p><div class="ask-btns"><button class="pp-btn" id="ask-no">Cancel</button><button class="pp-btn ask-yes" id="ask-yes"></button></div></div>`;
+  d.innerHTML = `<div class="ask-box" role="dialog" aria-modal="true"><p></p><div class="ask-btns"><button class="pp-btn" id="ask-no">Cancel</button></div></div>`;
   d.querySelector('p').textContent = message;
-  d.querySelector('#ask-yes').textContent = yesLabel;
+  const row = d.querySelector('.ask-btns');
+  let last = null;
+  for (const [label, fn] of choices) {
+    const b = document.createElement('button');
+    b.className = 'pp-btn ask-yes'; b.textContent = label;
+    b.onclick = () => { d.remove(); fn(); };
+    row.appendChild(b); last = b;
+  }
   d.querySelector('#ask-no').onclick = () => d.remove();
-  d.querySelector('#ask-yes').onclick = () => { d.remove(); onYes(); };
   d.addEventListener('click', e => { if (e.target === d) d.remove(); });
   document.body.appendChild(d);
-  d.querySelector('#ask-yes').focus();
+  last?.focus();
 }
 
+const PRESETS = {
+  dream: { build: () => buildDreamHouse(), name: 'Dream House (draft 1)', note: 'Coastal Cape: 5 bed, 3½ bath, basement theater & gym, pool and fenced yard' },
+  191:   { build: () => buildHouse191(),   name: '191 Webster St',        note: 'Basement, 1st & 2nd floors, garage, decks and yard' },
+};
 function _loadPreset() {
-  _ask('Load the 191 Webster St model? Your current design will be replaced (you can undo).', 'Load model', _doLoadPreset);
+  _ask('Load a house? Your current design will be replaced (you can undo).', '', null,
+    [['191 Webster St', () => _doLoadPreset('191')], ['Dream House', () => _doLoadPreset('dream')]]);
 }
-function _doLoadPreset() {
-  _apply(buildHouse191());
+function _doLoadPreset(key = 'dream') {
+  const p = PRESETS[key] || PRESETS.dream;
+  _apply(p.build());
   _afterStateChange(); _snapshot();
   editor?.zoomToFit(); viewer?.focusOnLayout();
-  _toast('🏡', '191 Webster St loaded', 'Basement, 1st & 2nd floors, garage, decks and yard');
+  _toast('🏡', `${p.name} loaded`, p.note);
 }
 function _saveFile() {
   const blob = new Blob([JSON.stringify(_data(), null, 2)], { type:'application/json' });

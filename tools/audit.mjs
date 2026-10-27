@@ -1,5 +1,6 @@
-// Layout & dimension audit for the 191 Webster preset (or any saved layout JSON).
-//   node tools/audit.mjs                 → audits the built-in preset
+// Layout & dimension audit for the presets (or any saved layout JSON).
+//   node tools/audit.mjs                 → audits 191 Webster
+//   node tools/audit.mjs dream           → audits the Dream House
 //   node tools/audit.mjs my-house.json   → audits a file saved with 💾
 // Checks, per floor:
 //   1. catalog sizes against real-world standards
@@ -12,9 +13,10 @@
 import { readFileSync } from 'node:fs';
 import { CATALOG_BY_TYPE as CAT } from '../furniture.js';
 import { buildHouse191 } from '../house191.js';
+import { buildDreamHouse } from '../houseDream.js';
 
 const file = process.argv[2];
-const house = file ? JSON.parse(readFileSync(file, 'utf8')) : buildHouse191();
+const house = file === 'dream' ? buildDreamHouse() : file ? JSON.parse(readFileSync(file, 'utf8')) : buildHouse191();
 const ft = v => { const i = Math.round(v * 12); return `${Math.floor(i / 12)}'${i % 12}"`; };
 const issues = [];
 const report = (sev, floor, msg) => issues.push({ sev, floor, msg });

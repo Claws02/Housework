@@ -1,11 +1,13 @@
 # House Designer
 
-A browser-based 2D/3D home designer (Three.js, no build step). It opens with a model of
-**191 Webster St, Marshfield MA**: basement, 1st and 2nd floors, attached garage, decks and
-yard, laid out from the listing floor plan and furnished to match the listing photos.
+A browser-based 2D/3D home designer (Three.js, no build step). It comes with two houses:
+- **Dream House (draft 1)**: a coastal Cape-style shingle house designed from `dream-house/BRIEF.md`
+  (5 bed, 3½ bath, basement theater and gym, pool, hot tub and a fenced yard).
+- **191 Webster St, Marshfield MA**: basement, 1st and 2nd floors, attached garage, decks and
+  yard, laid out from the listing floor plan and furnished to match the listing photos. It's the real-world reference.
 
 Serve the folder with any static server (`python3 -m http.server`) and open `index.html`.
-Add `?view=3d` to the URL to open straight into 3D.
+Add `?view=3d` to the URL to open straight into 3D, and `?house=dream` or `?house=191` to open that house.
 
 ## Using it
 - **Floors**: tabs at the top right switch the level you're editing. The level below shows as a dashed ghost.
@@ -14,7 +16,7 @@ Add `?view=3d` to the URL to open straight into 3D.
 - **3D View**: orbit with drag, pan with right-drag or two fingers. Tap anything to select it, and drag a selected item to move it.
   **Show** filters levels (All / B / 1 / 2). **Roof**, **Ceilings** and **Cutaway** toggle what's drawn.
   **Walk** drops you in as a little character on the front walk.
-  **☀ Day / 🌇 Evening / 🌙 Night** sets the sun and sky. **💡 Lights** switches the house fixtures (on by default in the evening and at night).
+  **🌅 Morning / ☀ Day / 🌇 Evening / 🌙 Night** sets the sun and sky (morning sun comes from plan +x, midday from the rear, evening from −x). **💡 Lights** switches the house fixtures (on by default in the evening and at night).
   **✨ Low / Medium / High** trades looks for speed: ambient occlusion, bloom, more lamp lights and sharper shadows at higher levels.
   It defaults to Medium on phones and High on desktops, and remembers your choice.
 - **Walk-through**: on a phone or tablet, put your left thumb anywhere in the bottom-left to get a joystick
@@ -26,7 +28,7 @@ Add `?view=3d` to the URL to open straight into 3D.
   ceiling and outdoor flags for rooms. Height, thickness, exterior flag and a finish per side for walls (A/B, with flip and split).
   Eave, ridge, overhang and color for roofs.
 - `,` and `.` rotate the selection 15°. Arrow keys nudge it. Ctrl+Z / Ctrl+Y undo and redo. Ctrl+D duplicates.
-- 🏡 reloads the 191 Webster model. 💾 / 📂 save and load JSON. 📷 exports the plan or the 3D view as PNG.
+- 🏡 loads either house. 💾 / 📂 save and load JSON. 📷 exports the plan or the 3D view as PNG.
 
 ## Code map
 | File | What it does |
@@ -41,7 +43,9 @@ Add `?view=3d` to the URL to open straight into 3D.
 | `models3d.js` | ~80 procedural furniture and fixture builders, sized from each item's width/depth/height |
 | `textures.js` | Procedural canvas textures (oak, tile, siding, shingles, brick, stone, …) and finish catalogs |
 | `furniture.js` | Catalog: dimensions, default colors, model key, wall-opening and mount flags |
+| `models_dream.js` | Dream-house set: privacy fence, pool, hot tub, heat pumps, generator, EV charger, home battery, mudroom lockers, litter-box cabinet, pantry shelving, ceiling beams, theater (screen, projector, speakers) and gym gear |
 | `house191.js` | The 191 Webster St preset |
+| `houseDream.js` | The Dream House preset (draft 1) |
 
 **Real-world scale.** Everything is in feet. In the preset, each room's clear interior (wall face to wall face) matches
 the listing, with 6″ exterior walls, 4½″ partitions and a 9.6″ foundation. The walk-through camera is set for a
@@ -49,7 +53,7 @@ the listing, with 6″ exterior walls, 4½″ partitions and a 9.6″ foundation
 field of view: about 103° in landscape and 54° in portrait, where the vertical is capped at 95° to avoid distortion. Oak boards are 7″ wide.
 Doors are 6′8″, counters 36″ and ceilings 8′.
 
-**Layout check.** `node tools/audit.mjs` (or `node tools/audit.mjs saved-house.json`) checks every item for overlaps,
+**Layout check.** `node tools/audit.mjs` (191 Webster), `node tools/audit.mjs dream`, or `node tools/audit.mjs saved-house.json` checks every item for overlaps,
 cutting into walls, blocking a doorway (2′6″ clear path; 1′ for closet doors), standing in front of windows, and catalog sizes
 against real-world standards. Run it after editing the preset; it exits non-zero when it finds problems.
 It also prints **designer clearance guidelines** as advice (not errors): 36″ walking paths from the entry to every door,
