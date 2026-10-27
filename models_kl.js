@@ -209,7 +209,8 @@ B.sofa = (k, w, d, h, c, c2, it) => {
 
 B.sectional = (k, w, d, h, c, c2, it) => {
   // Back run along the rear (−z) with the right arm; return along the left (−x) side out to +z.
-  const rnd = seeded(it.id), sd = Math.min(3.5, d), fab = S.slipcover(c);
+  // seatDepth = overall depth of each run (38" is typical; 42"+ is a deep lounge sectional)
+  const rnd = seeded(it.id), sd = Math.min(it.seatDepth ?? 3.17, d, w), fab = S.slipcover(c);
   plushSofa(k, w - sd, sd, h, c, sd / 2, -d / 2 + sd / 2, { armL: false, rnd });
   k.group(s => plushSofa(s, d - sd, sd, h, c, 0, 0, { armR: false, rnd }), -w / 2 + sd / 2, 0, sd / 2, PI / 2);
   // corner unit

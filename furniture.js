@@ -30,7 +30,7 @@ export const FURNITURE_CATALOG = [
   ...C('Living Room', [
     ['sofa-2',       'Loveseat',          5.5, 3.1, 2.8, '#c9c3b8', 'sofa',       '🛋', 550,  { color2: '#7d8ea3' }],
     ['sofa-3',       'Sofa',              7.5, 3.2, 2.8, '#c9c3b8', 'sofa',       '🛋', 800,  { color2: '#7d8ea3' }],
-    ['sofa-l',       'L-Sectional',       10,  8,   2.8, '#d8d4cb', 'sectional',  '🛋', 1800, { color2: '#6b6e72' }],
+    ['sofa-l',       'L-Sectional',       9.5, 7.5, 2.8, '#d8d4cb', 'sectional',  '🛋', 1800, { color2: '#6b6e72' }],   // w = back run, d = return; 38" deep
     ['armchair',     'Armchair',          3,   3,   2.8, '#7d8ea3', 'armchair',   '🪑', 380],
     ['recliner',     'Leather Recliner',  3.2, 3.3, 3.3, '#4b4038', 'recliner',   '🪑', 700],
     ['coffee-table', 'Coffee Table',      4,   2,   1.5, '#7a5233', 'coffeeTable','⬜', 280],

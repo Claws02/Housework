@@ -8,7 +8,7 @@ import { CATALOG_BY_TYPE } from './furniture.js';
 import { wallOpenings, roomAt } from './viewer3d.js';
 import { makeCharacter, SHIRT_COLORS } from './character.js';
 
-const RADIUS = 0.7;          // body radius (ft)
+const RADIUS = 0.58;         // 14" body width turned sideways — fits through any gap a real person could
 const BODY_H = 5.4;          // collision height
 const STEP_UP = 1.05;        // tallest step you can walk up
 const MAX_DROP = 2.6;        // won't walk off ledges taller than this

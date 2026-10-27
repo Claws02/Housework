@@ -38,7 +38,7 @@ export function buildHouse191() {
     const cat = CATALOG_BY_TYPE[type];
     const it = { id: id('f'), type, label: o.label ?? cat.label, x, y, width: o.w ?? cat.width, depth: o.d ?? cat.depth,
       rotation: (o.rot ?? 0) * Math.PI / 180, color: o.color ?? cat.color };
-    for (const k of ['color2', 'height', 'lift', 'pattern', 'open', 'grid', 'glass', 'stacked', 'umbrella', 'style', 'rails', 'rail', 'ceil', 'shutters', 'curtain', 'headboard', 'footboard'])
+    for (const k of ['seatDepth', 'color2', 'height', 'lift', 'pattern', 'open', 'grid', 'glass', 'stacked', 'umbrella', 'style', 'rails', 'rail', 'ceil', 'shutters', 'curtain', 'headboard', 'footboard'])
       if (o[k] !== undefined) it[k] = o[k];
     F.furniture.push(it);
     return it;
@@ -102,7 +102,7 @@ export function buildHouse191() {
   const BUMP = { x1: W + EXT + 4.58, y0: 11.25 - 8.58 };            // hall 12'0" × 8'7" = hall 7'5" + mudroom bump 4'7"
   const GAR = { x0: OUT.x1 + 9.42 + EXT, y0: -3.25, w: 25.75, d: 27.5 };   // porch deck 9'5" wide between house and garage
   const gx0 = GAR.x0 - EXT / 2, gx1 = GAR.x0 + GAR.w + EXT / 2, gy0 = GAR.y0 - EXT / 2, gy1 = GAR.y0 + GAR.d + EXT / 2;
-  const DOOR_X = 14.6;                                              // front door (into the living room, beside the stair)
+  const DOOR_X = 15.0;                                              // front door: living room corner at the foot of the stair (plan)
 
   room('Living Room', xL, yRow, xStairL - xL, yF - yRow, { wall: '#ebe1bf', color: '#3b82f6' });       // warm cream (photo)
   room('Stairs', xStairL, yRow, xStairR - xStairL, yF - yRow, { wall: '#ebe1bf', color: '#94a3b8' });
@@ -143,7 +143,7 @@ export function buildHouse191() {
   door(DOOR_X, yF, 0, { type: 'door-ext', color: '#d9b44a', label: 'Front Door' });
   win(3.6, yF, 0); win(8.6, yF, 0); win(27.6, yF, 0);
   win(xL, 2.75, 90, { lift: 3.5, height: 3.6, w: 2.4 }); win(xL, 5.6, 90, { lift: 3.5, height: 3.6 }); win(xL, 8.45, 90, { lift: 3.5, height: 3.6, w: 2.4 });
-  win(18.6, yB, 0, { w: 3.6, lift: 3.7, height: 3.4, label: 'Window over sink' });
+  win(17.0, yB, 0, { w: 3.6, lift: 3.7, height: 3.4, label: 'Window over sink' });
   win(30.2, yB, 0, { type: 'window-sm', lift: 4.5, w: 2.4, grid: false });
   win(xR, 14.4, 90, { w: 2.6 }); win(xR, 20.4, 90, { w: 2.6 });
   item('arch', 5.6, yB, { rot: 0, w: 6.4, height: 7, label: 'Opening to dining' });       // x 2.4 … 8.8, clear of the desk and fridge
@@ -177,46 +177,48 @@ export function buildHouse191() {
   item('builtins', 0.7, 13.105, { rot: -90, w: 2.95 });
   item('builtins', 0.7, 21.565, { rot: -90, w: 2.95 });
   item('tv', 1.75, 17.335, { rot: -90, w: 4.6, lift: 4.7 });
-  item('rug-8x10', 8.2, 17.6, { rot: 90, color: '#c2ab95' });
-  item('sofa-l', 8.2, 18.7, { rot: 180, w: 9.6, d: 8, color: '#cfc9bf', color2: '#6e7176' });
-  item('recliner', 5, 13.9, { rot: -60, color: '#5a4334' });
-  item('ottoman', 7.6, 17.2, { label: 'Storage Ottoman', w: 2.6, d: 2.2, color: '#d9d3c7' });
-  item('pouf', 3.9, 17.9, {});
+  // Seating (photos): 9'6" run facing the fireplace with a 3' walkway behind it from the front door to
+  // the kitchen, 7'6" run under the front windows; 38"-deep seats; ottoman 16" from both seat fronts.
+  item('rug-8x10', 7.9, 17.6, { rot: 90, color: '#c2ab95' });
+  item('sofa-l', 9.45, 18.15, { rot: 180, w: 7.5, d: 9.5, seatDepth: 3.17, color: '#cfc9bf', color2: '#6e7176' });
+  item('recliner', 4.4, 13.4, { rot: -60, color: '#5a4334' });
+  item('ottoman', 7.4, 17.3, { label: 'Storage Ottoman', w: 2.6, d: 2.2, color: '#d9d3c7' });
+  item('pouf', 4.0, 17.9, {});
   item('wall-art', 11.8, 22.95, { rot: 180, w: 1.3, height: 1.7, lift: 4.3, color: '#7a9a6a', label: 'Botanical Print' });
-  item('side-table', 2.45, 22.1, {});
-  item('floor-lamp', 15.6, 14, {});
+  item('side-table', 4.8, 22.1, {});
+  item('floor-lamp', 2.1, 21.4, {});
   item('curtains', 3.6, 22.8, { height: 7.35 });
   item('curtains', 8.6, 22.8, { height: 7.35 });
   for (const x of [3.6, 8.2, 12.8]) for (const y of [14.4, 20.4]) item('recessed-light', x, y, {});
 
   // Kitchen (clear 9.08..25.08 × 0..11.25)
   item('fridge', 10.6, 1.35, { rot: 0 });
-  item('counter', 13.75, 1.05, { w: 3.3 });
-  item('counter', 15.9, 1.05, { w: 1 });
-  item('sink-cab', 18.6, 1.05, { w: 3.6 });
-  item('dishwasher', 21.4, 1.05);
-  item('counter', 23.75, 1.05, { w: 2.66 });
+  // rear run (plan): fridge │ 3'1" counter │ 3'7" sink under the window │ dishwasher │ 4'3" counter
+  item('counter', 13.65, 1.05, { w: 3.1 });
+  item('sink-cab', 17.0, 1.05, { w: 3.6 });
+  item('dishwasher', 19.8, 1.05);
+  item('counter', 22.94, 1.05, { w: 4.28 });
   item('counter', 24.03, 3.15, { rot: 90, w: 2.1, label: 'Corner Counter' });
   item('stove', 23.98, 5.45, { rot: 90 });
   item('counter', 24.03, 7.5, { rot: 90, w: 1.6 });
   item('range-hood', 24.23, 5.45, { rot: 90 });
-  item('upper-cab-glass', 14.1, 0.55, { w: 3 });
-  item('upper-cab', 15.9, 0.55, { w: 0.6, height: 2.7 });
-  item('upper-cab-glass', 22.4, 0.55, { w: 2.4 });
+  item('upper-cab-glass', 13.65, 0.55, { w: 3 });
+  item('upper-cab-glass', 22.0, 0.55, { w: 2.4 });
   item('upper-cab', 24.53, 2.8, { rot: 90, w: 1.4 });
-  item('kitchen-island', 17.4, 6.65, { rot: 180, w: 6.5, d: 3.5 });       // 2'8" work aisle to the counters
-  for (const x of [15.5, 17.4, 19.3]) item('bar-stool', x, 7.98, { rot: 180 });   // tucked under the 12" overhang
-  item('pendant-dome', 15.8, 6.65, {}); item('pendant-dome', 19.0, 6.65, {});
+  // island where the plan draws it: 6'4" × 3'7", x 12.0–18.3, y 4.5–8.1 (a tight 28" work aisle, as built)
+  item('kitchen-island', 15.15, 6.3, { rot: 180, w: 6.3, d: 3.6 });
+  for (const x of [12.8, 14.45, 16.1]) item('bar-stool', x, 7.9, { rot: 180 });   // tucked under the overhang, clear of the basement door
+  item('pendant-dome', 13.55, 6.3, {}); item('pendant-dome', 16.75, 6.3, {});
   for (const [x, y] of [[11.4, 3], [15.4, 2.8], [21, 2.8], [23.2, 7.6], [11.4, 9.6], [22.6, 10.4]]) item('recessed-light', x, y, {});
   // counter & island dressing
-  item('fruit-bowl', 17.0, 6.8, { lift: 3 });
-  item('canisters', 13.4, 0.55, { lift: 3 });
-  item('coffee-maker', 15.9, 0.65, { lift: 3 });
-  item('paper-towel', 20.6, 0.5, { lift: 3 });
+  item('fruit-bowl', 14.9, 6.45, { lift: 3 });
+  item('canisters', 12.85, 0.55, { lift: 3 });
+  item('coffee-maker', 14.6, 0.65, { lift: 3 });
+  item('paper-towel', 21.4, 0.5, { lift: 3 });
   item('cutting-board', 23.2, 0.35, { lift: 3 });
   item('knife-block', 24.35, 7.6, { rot: 90, lift: 3 });
-  item('plant-sm', 18.6, 0.32, { lift: 3.75, w: 0.6, d: 0.6, height: 0.9, label: 'Sill Plant' });
-  item('roman-shade', 18.6, 0.1, { w: 3.5, lift: 6.0, height: 1.1 });
+  item('plant-sm', 17.0, 0.32, { lift: 3.75, w: 0.6, d: 0.6, height: 0.9, label: 'Sill Plant' });
+  item('roman-shade', 17.0, 0.1, { w: 3.5, lift: 6.0, height: 1.1 });
   item('builtin-desk', 1.0, 5.6, { rot: -90, w: 9.4, d: 2 });
   item('upper-cab', 0.55, 0.75, { rot: -90, w: 1.4, height: 3, lift: 4.3, label: 'Open Shelf', style: 'open' });
   item('upper-cab', 0.55, 10.5, { rot: -90, w: 1.4, height: 3, lift: 4.3, label: 'Open Shelf', style: 'open' });

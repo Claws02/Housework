@@ -83,7 +83,7 @@ const FABRIC = new Set(['curtains', 'romanShade']);
 /** Footprint(s): the L-sectional is two rectangles, not its bounding box. */
 function polys(it) {
   if (CAT[it.type]?.model !== 'sectional') return [corners(it)];
-  const sd = Math.min(3.5, it.depth), c = Math.cos(it.rotation), s = Math.sin(it.rotation);
+  const sd = Math.min(it.seatDepth ?? 3.17, it.depth, it.width), c = Math.cos(it.rotation), s = Math.sin(it.rotation);
   const tr = ([x, y]) => [it.x + x * c - y * s, it.y + x * s + y * c];
   const rect = (x0, x1, z0, z1) => [[x0, z0], [x1, z0], [x1, z1], [x0, z1]].map(tr);
   const W = it.width / 2, D = it.depth / 2;
@@ -173,8 +173,139 @@ house.floors.forEach(f => {
   }
 });
 
+// ── Designer clearance guidelines (advice, not errors) ──────────────────────
+// These are comfort guidelines; an older house (like 191 Webster's 28" kitchen aisle) can be
+// tighter as built. Use them as targets when designing a new layout.
+const GUIDE = { walk: 3.0, seatToTable: [1.33, 1.75], workAisle: 3.5, bedSide: 2.5, toiletFront: 2.0 };
+const advice = [];
+const advise = (floor, msg) => advice.push({ floor, msg });
+const inPoly = (P, x, y) => { let s0 = 0; for (let i = 0; i < P.length; i++) { const [x1, y1] = P[i], [x2, y2] = P[(i + 1) % P.length]; const c = (x2 - x1) * (y - y1) - (y2 - y1) * (x - x1); if (c !== 0) { if (s0 === 0) s0 = Math.sign(c); else if (Math.sign(c) !== s0) return false; } } return true; };
+function segDist(px, py, [x1, y1], [x2, y2]) { const dx = x2 - x1, dy = y2 - y1, l2 = dx * dx + dy * dy, t = l2 ? Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / l2)) : 0; return Math.hypot(px - x1 - t * dx, py - y1 - t * dy); }
+function polyDist(A, B) {
+  if (overlap(A, B) > 0) return 0;
+  let d = Infinity;
+  for (const [P, Q] of [[A, B], [B, A]]) for (const [x, y] of P) for (let i = 0; i < Q.length; i++) d = Math.min(d, segDist(x, y, Q[i], Q[(i + 1) % Q.length]));
+  return d;
+}
+const itemsDist = (a, b) => Math.min(...polys(a).flatMap(pa => polys(b).map(pb => polyDist(pa, pb))));
+const isFloorObstacle = (f, it) => {
+  const c = CAT[it.type]; if (!c || c.opening || c.mount === 'ceiling' || c.layer === 0 || IGNORE.has(c.model) || FABRIC.has(c.model)) return false;
+  if (c.layer === 2 && (it.lift ?? c.lift ?? 0) > 2) return false;     // wall-mounted / on a counter
+  const [y0, y1] = vrange(f, it); return y1 > 0.3 && y0 < 5.5;
+};
+
+house.floors.forEach((f, fi) => {
+  const name = f.name, items = f.furniture, walls = f.walls;
+  const obstacles = items.filter(it => isFloorObstacle(f, it));
+  const obstaclePolys = obstacles.flatMap(it => polys(it).map(P => ({ P, it })));
+  const wallPolys = walls.map(wallPoly);
+  // distance from a point to the nearest wall or floor-standing item (excluding `skip`)
+  const blockedAt = (x, y, skip, also = []) => wallPolys.some(P => inPoly(P, x, y)) || obstaclePolys.some(o => o.it !== skip && !also.includes(o.it) && inPoly(o.P, x, y));
+  const castClear = (x, y, ux, uy, skip, max = 3.5, also = []) => { for (let d = 0.05; d <= max; d += 0.05) if (blockedAt(x + ux * d, y + uy * d, skip, also)) return d; return max; };
+
+  // seat ↔ coffee table / ottoman
+  const seats = items.filter(it => ['sofa', 'sectional', 'armchair', 'recliner'].includes(CAT[it.type]?.model));
+  for (const t of items.filter(it => ['coffeeTable', 'ottoman'].includes(CAT[it.type]?.model))) {
+    if (!seats.length) continue;
+    const g = Math.min(...seats.map(sa => itemsDist(sa, t)));
+    if (g < GUIDE.seatToTable[0] || g > GUIDE.seatToTable[1] + 0.5) advise(name, `${t.label} is ${ft(g)} from the nearest seat (16–18" is comfortable)`);
+  }
+  // kitchen work aisle
+  const work = items.filter(it => ['baseCab', 'sinkCab', 'range', 'dishwasher', 'fridge', 'pantry'].includes(CAT[it.type]?.model));
+  for (const isl of items.filter(it => CAT[it.type]?.model === 'island')) {
+    const g = Math.min(...work.map(w => itemsDist(isl, w)));
+    if (g < GUIDE.workAisle) advise(name, `Kitchen work aisle is ${ft(g)} between the ${isl.label} and the counters (42" recommended, 36" minimum)`);
+  }
+  // beds: both long sides and the foot
+  for (const b of items.filter(it => ['bed', 'bunk', 'crib'].includes(CAT[it.type]?.model))) {
+    const c = Math.cos(b.rotation), sn = Math.sin(b.rotation), hw = b.width / 2, hd = b.depth / 2;
+    const P = (lx, lz) => [b.x + lx * c - lz * sn, b.y + lx * sn + lz * c];
+    const dir = (lx, lz) => [lx * c - lz * sn, lx * sn + lz * c];
+    const sides = [['left side', P(-hw, hd * 0.35), dir(-1, 0)], ['right side', P(hw, hd * 0.35), dir(1, 0)], ['foot', P(0, hd), dir(0, 1)]];
+    const benches = items.filter(it => CAT[it.type]?.model === 'bench');   // a bench at the foot is part of the bed set
+    const free = sides.map(([lab, [x, y], [ux, uy]]) => [lab, castClear(x, y, ux, uy, b, 3.5, benches)]);
+    for (const [lab, d] of free) if (d > 0.3 && d < GUIDE.bedSide) advise(name, `${b.label}: ${ft(d)} clear at the ${lab} (30" recommended)`);
+  }
+  // toilets: clear space in front
+  for (const t of items.filter(it => CAT[it.type]?.model === 'toilet')) {
+    const c = Math.cos(t.rotation), sn = Math.sin(t.rotation), [ux, uy] = [-sn * 1, c * 1];
+    const d = castClear(t.x + ux * t.depth / 2, t.y + uy * t.depth / 2, ux, uy, t);
+    if (d < GUIDE.toiletFront) advise(name, `${t.label}: ${ft(d)} clear in front (24" recommended, 21" code minimum)`);
+  }
+
+  // walkable paths: from the floor's entry to every door / opening, widest route available
+  const indoor = f.rooms.filter(r => !r.outdoor);
+  if (!indoor.length) return;
+  const G = 0.2, X0 = Math.min(...indoor.map(r => r.x)) - 1, Y0 = Math.min(...indoor.map(r => r.y)) - 1;
+  const NX = Math.ceil((Math.max(...indoor.map(r => r.x + r.width)) + 1 - X0) / G), NY = Math.ceil((Math.max(...indoor.map(r => r.y + r.height)) + 1 - Y0) / G);
+  const idx = (i, j) => j * NX + i, cx = i => X0 + (i + 0.5) * G, cy = j => Y0 + (j + 0.5) * G;
+  const passages = items.filter(it => ['door', 'slider', 'opening', 'garageDoor'].includes(CAT[it.type]?.model));
+  const doorZone = new Uint8Array(NX * NY), free = new Uint8Array(NX * NY);
+  const doorPolys = passages.map(o => corners({ ...o, width: Math.max(0.4, o.width - 0.2), depth: 1.6 }));
+  const holes = items.filter(it => CAT[it.type]?.floorHole || ['stairs'].includes(CAT[it.type]?.model)).map(corners);
+  for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
+    const x = cx(i), y = cy(j), k = idx(i, j);
+    const inRoom = indoor.some(r => x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height);
+    const inDoor = doorPolys.some(P => inPoly(P, x, y));
+    if (inDoor) doorZone[k] = 1;
+    if ((inRoom || inDoor) && (inDoor || !wallPolys.some(P => inPoly(P, x, y))) && !obstaclePolys.some(o => inPoly(o.P, x, y)) && !holes.some(P => inPoly(P, x, y))) free[k] = 1;
+  }
+  // distance to the nearest blocked cell (two-pass chamfer); door openings count as wide enough
+  const dist = new Float32Array(NX * NY);
+  for (let k = 0; k < dist.length; k++) dist[k] = free[k] ? 1e6 : 0;
+  const pass = (order) => { for (const [i, j] of order) { const k = idx(i, j); if (!dist[k]) continue;
+    for (const [di, dj, w] of [[-1, 0, G], [0, -1, G], [-1, -1, G * 1.414], [1, -1, G * 1.414], [1, 0, G], [0, 1, G], [1, 1, G * 1.414], [-1, 1, G * 1.414]]) {
+      const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= NX || jj >= NY) { dist[k] = Math.min(dist[k], w); continue; }
+      dist[k] = Math.min(dist[k], dist[idx(ii, jj)] + w);
+    } } };
+  const fwd = [], bwd = [];
+  for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) fwd.push([i, j]);
+  for (let n = fwd.length - 1; n >= 0; n--) bwd.push(fwd[n]);
+  pass(fwd); pass(bwd); pass(fwd);
+  // widest-path (maximin) search from the entry
+  const width = new Float32Array(NX * NY).fill(-1);
+  const cellOf = (x, y) => [Math.floor((x - X0) / G), Math.floor((y - Y0) / G)];
+  const hubDoor = fi === groundFloorIdx ? passages.find(o => /front/i.test(o.label)) : null;
+  let hubPt;
+  if (hubDoor) hubPt = [hubDoor.x, hubDoor.y];
+  else {   // stair landing: the end of the flight that meets this floor
+    const st = house.floors.flatMap(F => F.furniture).find(it => CAT[it.type]?.model === (fi < groundFloorIdx ? 'stairsDown' : 'stairOpening'));
+    if (!st) return;
+    const c = Math.cos(st.rotation), sn = Math.sin(st.rotation), e = fi < groundFloorIdx ? st.depth / 2 + 0.6 : -st.depth / 2 - 0.6;
+    hubPt = [st.x - sn * e, st.y + c * e];
+  }
+  const eff = k => doorZone[k] ? 99 : 2 * dist[k];
+  const heap = [];   // simple bucket queue on width (descending)
+  const push = (k, w) => { if (w > width[k]) { width[k] = w; heap.push([w, k]); } };
+  const [hi, hj] = cellOf(...hubPt);
+  for (let dj = -3; dj <= 3; dj++) for (let di = -3; di <= 3; di++) { const i = hi + di, j = hj + dj; if (i >= 0 && j >= 0 && i < NX && j < NY && free[idx(i, j)]) push(idx(i, j), eff(idx(i, j))); }
+  while (heap.length) {
+    let bi = 0; for (let n = 1; n < heap.length; n++) if (heap[n][0] > heap[bi][0]) bi = n;
+    const [w, k] = heap[bi]; heap[bi] = heap[heap.length - 1]; heap.pop();
+    if (w < width[k]) continue;
+    const i = k % NX, j = (k / NX) | 0;
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= NX || jj >= NY) continue; const kk = idx(ii, jj); if (free[kk]) push(kk, Math.min(w, eff(kk))); }
+  }
+  const sideName = (o, s) => { const c = Math.cos(o.rotation), sn = Math.sin(o.rotation); const r = roomAt(f, o.x - sn * s, o.y + c * s); return r ? r.name : 'outside'; };
+  for (const o of passages) {
+    if (o === hubDoor) continue;
+    const P = doorPolys[passages.indexOf(o)];
+    let best = -1;
+    for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) { const k = idx(i, j); if (doorZone[k] && inPoly(P, cx(i), cy(j))) best = Math.max(best, width[k]); }
+    const sideA = sideName(o, 0.9), sideB = sideName(o, -0.9);
+    if ([sideA, sideB].some(n => n === 'outside' || f.rooms.find(r => r.name === n)?.outdoor)) continue;   // exterior doors: reached from outside
+    const where = `${o.label} (${sideA} ↔ ${sideB})`;
+    if (best < 0) advise(name, `No walkable path from the ${hubDoor ? hubDoor.label : 'stairs'} to the ${where}`);
+    else if (best < GUIDE.walk) advise(name, `Path from the ${hubDoor ? hubDoor.label : 'stairs'} to the ${where} narrows to ${ft(Math.min(best, 9))} (36" recommended)`);
+  }
+});
+
 const order = ['size', 'door', 'overlap', 'wall', 'window', 'opening', 'outside'];
 issues.sort((a, b) => order.indexOf(a.sev) - order.indexOf(b.sev));
 for (const i of issues) console.log(`[${i.sev}] ${i.floor}: ${i.msg}`);
 console.log(issues.length ? `\n${issues.length} issue(s)` : 'No issues found');
+if (advice.length) {
+  console.log(`\nDesigner clearance guidelines (${advice.length} note${advice.length > 1 ? 's' : ''}; advice, not errors):`);
+  for (const a of advice) console.log(`  · ${a.floor}: ${a.msg}`);
+}
 process.exitCode = issues.length ? 1 : 0;

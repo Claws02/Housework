@@ -52,6 +52,8 @@ Doors are 6′8″, counters 36″ and ceilings 8′.
 **Layout check.** `node tools/audit.mjs` (or `node tools/audit.mjs saved-house.json`) checks every item for overlaps,
 cutting into walls, blocking a doorway (2′6″ clear path; 1′ for closet doors), standing in front of windows, and catalog sizes
 against real-world standards. Run it after editing the preset; it exits non-zero when it finds problems.
+It also prints **designer clearance guidelines** as advice (not errors): 36″ walking paths from the entry to every door,
+16–18″ from seats to a coffee table or ottoman, a 42″ kitchen work aisle, 30″ beside and at the foot of beds, and 24″ in front of toilets.
 
 Dimensions are in feet. Plan +x is left → right and plan +y is rear → street. An item's front faces plan +y at
 rotation 0. The preset is approximate: the listing plan gives room sizes, not wall-to-wall positions.
