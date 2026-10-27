@@ -445,6 +445,8 @@ document.addEventListener('DOMContentLoaded', () => {
   _snapshot();
   _updateUndoButtons();
   requestAnimationFrame(() => editor?.zoomToFit());
+  // Embedded (e.g. a hosted preview): file downloads are blocked there, so hide Save and Export
+  if (window.self !== window.top) for (const id of ['btn-save', 'btn-export']) { const b = _qs('#' + id); if (b) b.hidden = true; }
   if (new URLSearchParams(location.search).get('view') === '3d') _setMode('3d');
   // handy from the browser console: __house.state, __house.editor(), __house.viewer()
   window.__house = { state, editor: () => editor, viewer: () => viewer };
@@ -744,8 +746,25 @@ function _loadStorage() {
   }
   _apply(_fromAny(d));
 }
+/** In-app confirmation (browser confirm() dialogs are blocked when the app is embedded). */
+function _ask(message, yesLabel, onYes) {
+  _qs('#ask-dialog')?.remove();
+  const d = document.createElement('div');
+  d.id = 'ask-dialog'; d.className = 'ask-dialog';
+  d.innerHTML = `<div class="ask-box" role="dialog" aria-modal="true"><p></p><div class="ask-btns"><button class="pp-btn" id="ask-no">Cancel</button><button class="pp-btn ask-yes" id="ask-yes"></button></div></div>`;
+  d.querySelector('p').textContent = message;
+  d.querySelector('#ask-yes').textContent = yesLabel;
+  d.querySelector('#ask-no').onclick = () => d.remove();
+  d.querySelector('#ask-yes').onclick = () => { d.remove(); onYes(); };
+  d.addEventListener('click', e => { if (e.target === d) d.remove(); });
+  document.body.appendChild(d);
+  d.querySelector('#ask-yes').focus();
+}
+
 function _loadPreset() {
-  if (!confirm('Load the 191 Webster St model? Your current design will be replaced (you can undo).')) return;
+  _ask('Load the 191 Webster St model? Your current design will be replaced (you can undo).', 'Load model', _doLoadPreset);
+}
+function _doLoadPreset() {
   _apply(buildHouse191());
   _afterStateChange(); _snapshot();
   editor?.zoomToFit(); viewer?.focusOnLayout();
@@ -772,7 +791,9 @@ function _loadFile(e) {
   e.target.value = '';
 }
 function _clearAll() {
-  if (!confirm('Clear everything and start from an empty lot?')) return;
+  _ask('Clear everything and start from an empty lot?', 'Clear all', _doClearAll);
+}
+function _doClearAll() {
   _apply(emptyHouse());
   hist.stack=[]; hist.cursor=-1;
   _afterStateChange(); _snapshot();

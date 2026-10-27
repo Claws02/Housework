@@ -36,7 +36,8 @@ function sweep(f0, f1, dur, type = 'sine', vol = 0.22, delay = 0) {
   o.start(t); o.stop(t + dur + 0.02);
 }
 
-let _muted = localStorage.getItem('apt-snd') === '0';
+let _muted = false;
+try { _muted = localStorage.getItem('apt-snd') === '0'; } catch (_) {}
 
 function play(fn) { if (!_muted) fn(); }
 
@@ -62,7 +63,7 @@ export const sounds = {
 
   toggleMute() {
     _muted = !_muted;
-    localStorage.setItem('apt-snd', _muted ? '0' : '1');
+    try { localStorage.setItem('apt-snd', _muted ? '0' : '1'); } catch (_) {}
     return _muted;
   },
 };
