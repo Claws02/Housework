@@ -210,10 +210,10 @@ B.bed = (k, w, d, h, c, c2, it) => {
             : M.fabric(c);
   k.box(w, railH - 0.3, d - 0.3, frame, 0, 0.3, 0.05);
   legs4(k, w, d - 0.2, 0.3, 0.12, frame, 0.15, false);
-  k.rbox(w - 0.12, mt, d - 0.5, 0.12, M.linen(), 0, railH, 0.1);
+  k.rbox(w - 0.3, mt, d - 0.5, 0.12, M.linen(), 0, railH, 0.1);                 // mattress sits inside the frame
   const cov = (d - 0.5) * 0.76;
-  k.rbox(w + 0.06, mt * 0.8 + 0.18, cov, 0.1, pat, 0, railH + mt * 0.2, 0.1 + (d - 0.5) / 2 - cov / 2 + 0.02);
-  k.rbox(w + 0.04, 0.12, 0.9, 0.05, M.linen(), 0, railH + mt - 0.02, 0.1 + (d - 0.5) / 2 - cov - 0.25); // sheet fold
+  k.rbox(w - 0.14, mt * 0.8 + 0.18, cov, 0.1, pat, 0, railH + mt * 0.2, 0.1 + (d - 0.5) / 2 - cov / 2 + 0.02);
+  k.rbox(w - 0.16, 0.12, 0.9, 0.05, M.linen(), 0, railH + mt - 0.02, 0.1 + (d - 0.5) / 2 - cov - 0.25); // sheet fold
   const n = w < 4 ? 1 : 2, pw = Math.min(2.4, (w - 0.4) / n);
   for (let i = 0; i < n; i++) {
     const x = -((n - 1) * pw) / 2 + i * pw;
@@ -221,11 +221,12 @@ B.bed = (k, w, d, h, c, c2, it) => {
     k.rbox(pw * 0.55, 0.4, 0.3, 0.15, M.fabric(c), x, railH + mt, -d / 2 + 1.6);  // accent pillow
   }
   const hbH = it.headboard ?? 4.3;
-  k.box(w + 0.25, hbH, 0.22, frame, 0, 0, -d / 2 + 0.11);
-  k.box(w + 0.45, 0.14, 0.32, frame, 0, hbH, -d / 2 + 0.11);
-  for (const sx of [-1, 1]) k.box(0.22, hbH + 0.15, 0.3, frame, sx * (w / 2 + 0.05), 0, -d / 2 + 0.11);
+  // headboard, posts and footboard stay inside the catalog footprint (w = overall frame width)
+  k.box(w - 0.1, hbH, 0.22, frame, 0, 0, -d / 2 + 0.11);
+  k.box(w, 0.14, 0.3, frame, 0, hbH, -d / 2 + 0.15);
+  for (const sx of [-1, 1]) k.box(0.22, hbH + 0.15, 0.3, frame, sx * (w / 2 - 0.11), 0, -d / 2 + 0.15);
   k.box(w - 0.5, hbH - 1.8, 0.05, frame, 0, railH + 0.4, -d / 2 + 0.24);   // inset panel
-  if (it.footboard !== false) k.box(w + 0.25, railH + 0.5, 0.2, frame, 0, 0, d / 2 - 0.1);
+  if (it.footboard !== false) k.box(w, railH + 0.5, 0.2, frame, 0, 0, d / 2 - 0.1);
 };
 
 B.bunk = (k, w, d, h, c, c2) => {
@@ -569,7 +570,7 @@ B.shower = (k, w, d, h, c, c2) => {   // glass enclosure with subway-tiled back 
   k.cyl(0.25, 0.25, 0.05, M.chrome(), -w * 0.1, 6.4, -d / 2 + 0.6, 20);
   k.cyl(0.03, 0.03, 0.6, M.chrome(), -w * 0.1, 6.45, -d / 2 + 0.3, 6).rotation.x = Math.PI / 2;
   k.cyl(0.12, 0.12, 0.08, M.chrome(), -w * 0.1, 3.8, -d / 2 + 0.15, 16).rotation.x = Math.PI / 2;
-  for (const y of [3.5, 4.4]) { const s = k.cyl(0.4, 0.4, 0.04, M.chrome(), -w / 2 + 0.12, y, -d / 2 + 0.12, 4); s.rotation.y = Math.PI / 4; s.scale.set(0.7, 1, 0.7); }
+  for (const y of [3.5, 4.4]) { const s = k.cyl(0.4, 0.4, 0.04, M.chrome(), -w / 2 + 0.12, y, -d / 2 + 0.12, 4); s.rotation.y = Math.PI / 4; s.scale.set(0.3, 1, 0.3); }   // corner shelves, inside the enclosure
 };
 
 B.washer = (k, w, d, h, c, c2, it) => {

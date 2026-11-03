@@ -30,7 +30,20 @@ Add `?view=3d` to the URL to open straight into 3D, and `?house=dream` or `?hous
 - `,` and `.` rotate the selection 15°. Arrow keys nudge it. Ctrl+Z / Ctrl+Y undo and redo. Ctrl+D duplicates.
 - 🏡 loads either house. 💾 / 📂 save and load JSON. 📷 exports the plan or the 3D view as PNG.
 
-## Code map
+## Listing tours (for realtors)
+`tour.html` is a view-only 3D tour for buyers: orbit, floor-by-floor dollhouse, walk-through, time of day,
+and a **Furnished / Unfurnished** switch that hides staging and keeps what sells with the house (cabinets,
+appliances, built-ins, fixtures). In the designer, each item has a **Sells with the house** checkbox to override that.
+- Branded link: `tour.html?l=<id>` (agent card + "Made by CLAWEngineering").
+- Unbranded MLS link: `tour.html?l=<id>&mls=1` (no agent, no credit).
+- Listings live in `listings/` (see `listings/README.md`). `node tools/build-site.mjs` builds `site/`, a folder
+  to upload to any static host.
+
+**Walk lenses.** The walk-through has three lenses (🔭 button, or ⚙ in the tour): Natural (90° across), Wide
+(100°, the default) and Photo lens (115°, close to how listing photos are shot, which is why rooms in listing photos
+look roomier than in person). On a portrait phone the view is capped vertically, so it's narrower across; turning the
+phone sideways shows the most. The tour also lets the viewer set their own height.
+
 | File | What it does |
 |---|---|
 | `app.js` | State (floors, site, view), history, panels, palette, persistence |
@@ -44,13 +57,14 @@ Add `?view=3d` to the URL to open straight into 3D, and `?house=dream` or `?hous
 | `textures.js` | Procedural canvas textures (oak, tile, siding, shingles, brick, stone, …) and finish catalogs |
 | `furniture.js` | Catalog: dimensions, default colors, model key, wall-opening and mount flags |
 | `models_dream.js` | Dream-house set: privacy fence, pool, hot tub, heat pumps, generator, EV charger, home battery, mudroom lockers, litter-box cabinet, pantry shelving, ceiling beams, theater (screen, projector, speakers) and gym gear |
+| `tour.html`, `tour.js`, `tour.css` | The view-only listing tour |
 | `house191.js` | The 191 Webster St preset |
 | `houseDream.js` | The Dream House preset (draft 1) |
 
 **Real-world scale.** Everything is in feet. In the preset, each room's clear interior (wall face to wall face) matches
 the listing, with 6″ exterior walls, 4½″ partitions and a 9.6″ foundation. The walk-through camera is set for a
-5′10″ person (eyes at 5′5½″), walks at 3 mph (jogs at 6 mph at the joystick's rim or with Shift) and aims for a ~90° horizontal
-field of view: about 103° in landscape and 54° in portrait, where the vertical is capped at 95° to avoid distortion. Oak boards are 7″ wide.
+5′10″ person (eyes at 5′5½″) and walks at 3 mph (jogs at 6 mph at the joystick's rim or with Shift). The default Wide lens
+is 100° across in landscape and about 72° in portrait, where the vertical is capped at 115°. Oak boards are 7″ wide.
 Doors are 6′8″, counters 36″ and ceilings 8′.
 
 **Layout check.** `node tools/audit.mjs` (191 Webster), `node tools/audit.mjs dream`, or `node tools/audit.mjs saved-house.json` checks every item for overlaps,

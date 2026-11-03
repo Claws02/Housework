@@ -209,3 +209,23 @@ export const FURNITURE_CATALOG = [
 ];
 
 export const CATALOG_BY_TYPE = Object.fromEntries(FURNITURE_CATALOG.map(c => [c.type, c]));
+
+// ── Built-in vs. staging ─────────────────────────────────────────────────────
+// "Furniture off" in the listing tour hides staging (furniture, decor, rugs, cars, patio sets) and keeps
+// what sells with the house: cabinets, counters, appliances, bath fixtures, fireplace, built-ins, closet
+// systems, light fixtures, doors/windows/stairs, mechanicals, landscaping, fences, pool.
+// An item can override its type with `builtIn: true | false`.
+const BUILT_IN_CATEGORIES = new Set(['Kitchen', 'Bathroom', 'Architecture', 'Systems']);
+const BUILT_IN_TYPES = new Set([
+  'closet-sys', 'builtins', 'fireplace',
+  'washer', 'dryer', 'washer-stack', 'utility-sink', 'boiler', 'water-heater', 'elec-panel', 'joists',
+  'ceiling-light', 'recessed-light', 'pendant', 'pendant-dome', 'lantern',
+  'speaker-ceiling', 'proj-screen', 'projector', 'smart-panel', 'ceiling-beams', 'cubbies', 'pantry-shelves',
+  'tree', 'tree-birch', 'tree-pine', 'shrub', 'hydrangea', 'hosta', 'shed', 'fire-pit', 'lamp-post', 'mailbox',
+  'boulder', 'fence', 'privacy-fence', 'pool', 'hot-tub',
+]);
+export function isBuiltIn(item) {
+  if (item.builtIn !== undefined) return !!item.builtIn;
+  const cat = CATALOG_BY_TYPE[item.type];
+  return !!cat && (BUILT_IN_CATEGORIES.has(cat.category) || BUILT_IN_TYPES.has(item.type));
+}

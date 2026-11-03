@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { CATALOG_BY_TYPE } from './furniture.js';
+import { isBuiltIn, CATALOG_BY_TYPE } from './furniture.js';
 import { buildModel } from './models3d.js';
 import './models_kl.js';           // registers the kitchen & living room set
 import './models_dream.js';        // registers the dream-house yard, systems, theater & gym set
@@ -125,6 +125,15 @@ export function wallOpenings(wall, items) {
 }
 
 // ── Viewer ──────────────────────────────────────────────────────────────────
+/** Walk-through lenses. h = horizontal field of view (°) aimed for; vmax caps the vertical on portrait screens.
+ *  Natural ≈ what you take in without turning your head. Listing photos are shot around 105–120° wide,
+ *  which is why rooms in listing photos look roomier than they feel in person. */
+export const LENSES = {
+  natural: { label: 'Natural', h: 90, vmax: 100 },
+  wide:    { label: 'Wide', h: 100, vmax: 115 },
+  photo:   { label: 'Photo lens', h: 115, vmax: 125 },
+};
+
 export class Viewer3D {
   constructor(container, state, cb = {}) {
     this.container = container;
@@ -525,6 +534,7 @@ export class Viewer3D {
   _buildItems(g, floor, fi, used, cut, peel) {
     const allWalls = this._allWalls(floor);
     for (const it of floor.furniture) {
+      if (!this.itemShown(it)) continue;
       const cat = CATALOG_BY_TYPE[it.type];
       if ((cut || peel) && (cat?.mount === 'ceiling' || cat?.model === 'chimney')) continue;
       const ctx = { ceil: it.ceil ?? floor.height };
@@ -821,14 +831,20 @@ export class Viewer3D {
     }
   }
 
-  /** Walk-mode field of view: aim for ~90° across (what a person takes in without turning their head),
-   *  but keep the vertical between 60° and 95° so portrait phones don't distort. */
+  /** Walk-mode field of view from the chosen lens: aim for its horizontal angle, but cap the vertical so
+   *  portrait phones don't stretch too much at the top and bottom of the screen. */
   _applyWalkFov() {
-    const aspect = this.camera.aspect || 1;
-    const vfov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(45)) / aspect);
-    this.camera.fov = THREE.MathUtils.clamp(THREE.MathUtils.radToDeg(vfov), 60, 95);
+    const aspect = this.camera.aspect || 1, L = LENSES[this.view.lens] || LENSES.wide;
+    const vfov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(L.h / 2)) / aspect);
+    this.camera.fov = THREE.MathUtils.clamp(THREE.MathUtils.radToDeg(vfov), 50, L.vmax);
     this.camera.updateProjectionMatrix();
   }
+  setLens(key) { this.view.lens = key; if (this.walk.on) this._applyWalkFov(); }
+  setPersonHeight(ft) { this.view.personH = ft; this.walker?.setPersonHeight(ft); }
+
+  /** Staging (furniture, decor) hides when "furnished" is off; built-ins always show. */
+  itemShown(it) { return this.view.decor !== false || isBuiltIn(it); }
+  setDecor(on) { this.view.decor = on; this.buildScene(); this.walker?.rebuildWorld(); }
 
   _resize() {
     const w = this.container.clientWidth, h = this.container.clientHeight;

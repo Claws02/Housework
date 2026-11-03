@@ -38,7 +38,7 @@ export function buildHouse191() {
     const cat = CATALOG_BY_TYPE[type];
     const it = { id: id('f'), type, label: o.label ?? cat.label, x, y, width: o.w ?? cat.width, depth: o.d ?? cat.depth,
       rotation: (o.rot ?? 0) * Math.PI / 180, color: o.color ?? cat.color };
-    for (const k of ['seatDepth', 'color2', 'height', 'lift', 'pattern', 'open', 'grid', 'glass', 'stacked', 'umbrella', 'style', 'rails', 'rail', 'ceil', 'shutters', 'curtain', 'headboard', 'footboard'])
+    for (const k of ['seatDepth', 'color2', 'height', 'lift', 'pattern', 'open', 'grid', 'glass', 'stacked', 'umbrella', 'style', 'rails', 'rail', 'ceil', 'shutters', 'curtain', 'headboard', 'footboard', 'builtIn'])
       if (o[k] !== undefined) it[k] = o[k];
     F.furniture.push(it);
     return it;
@@ -267,7 +267,7 @@ export function buildHouse191() {
   item('metal-shelf', GAR.x0 + 2.2, gy0 + 1, {});
   item('metal-shelf', gx1 - 1, 17, { rot: -90 });
   item('workbench', GAR.x0 + 12, gy0 + 1.5, { w: 7 });
-  item('fridge', GAR.x0 + 6.3, gy0 + 1.6, { label: 'Garage Fridge' });
+  item('fridge', GAR.x0 + 6.3, gy0 + 1.6, { label: 'Garage Fridge', builtIn: false });
   item('trash-bin', GAR.x0 + 1.2, 2, { rot: -90 });
   item('trash-bin', GAR.x0 + 1.2, 4.5, { rot: -90, color: '#2f5ea8', label: 'Recycling' });
 

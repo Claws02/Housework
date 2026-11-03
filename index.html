@@ -72,6 +72,7 @@
           <button id="v3-roof"     class="v3-btn" title="Show roofs">⌂ Roof</button>
           <button id="v3-ceilings" class="v3-btn" title="Show ceilings">▔ Ceilings</button>
           <button id="v3-cutaway"  class="v3-btn" title="Dollhouse: lower the walls of the top visible floor">✂ Cutaway</button>
+          <button id="v3-decor"    class="v3-btn active" title="Furniture and decor (off = only what sells with the house)">🛋 Furniture</button>
         </div>
         <div class="v3-group">
           <div id="v3-time" class="v3-seg" title="Time of day"></div>
@@ -91,6 +92,7 @@
         <div id="walk-btns">
           <button id="walk-cam" class="walk-btn">👁 First person</button>
           <button id="walk-time" class="walk-btn" title="Time of day">☀</button>
+          <button id="walk-lens" class="walk-btn" title="Lens: how much you see at once">🔭 Wide</button>
           <button id="walk-shirt" class="walk-btn" title="Change shirt color"><span class="shirt-dot"></span>Shirt</button>
           <button id="walk-exit" class="walk-btn">✕ Exit</button>
         </div>
@@ -240,6 +242,9 @@
         <div class="pp-section" id="pp-furn-pattern-row">
           <div class="pp-label">Bedding</div>
           <select class="pp-input" id="pp-furn-pattern"></select>
+        </div>
+        <div class="pp-section pp-checks">
+          <label title="Stays when the tour is switched to Unfurnished (cabinets, appliances, built-ins, fixtures)"><input type="checkbox" id="pp-furn-built"> Sells with the house</label>
         </div>
         <div class="pp-section">
           <div class="pp-label">Price</div>

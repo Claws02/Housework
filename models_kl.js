@@ -479,7 +479,8 @@ B.range = (k, w, d, h) => {
 
 B.hood = (k, w, d, h) => {
   const st = S.steel();
-  const can = k.cyl(0.5, 1, 0.75, st, 0, 0, 0, 4); can.rotation.y = PI / 4; can.scale.set(w * 0.71, 1, d * 0.71);
+  // pyramid canopy: square in plan (turn the 4-sided cone first, then stretch it to w × d)
+  k.group(g => { g.cyl(0.5, 1, 0.75, st, 0, 0, 0, 4).rotation.y = PI / 4; }).scale.set(w * 0.707, 1, d * 0.707);
   k.box(w, 0.12, d, st, 0, 0, 0);
   k.box(w - 0.3, 0.01, d - 0.3, mat('plain', '#8a8d91', { roughness: 0.5, metalness: 0.7 }), 0, -0.005, 0);      // baffle filter
   for (const sx of [-1, 1]) k.cyl(0.07, 0.07, 0.01, S.led(), sx * w * 0.28, -0.012, d * 0.12, 14);

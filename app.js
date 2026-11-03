@@ -1,6 +1,6 @@
 import { Editor2D }         from './editor2d.js';
-import { Viewer3D }          from './viewer3d.js';
-import { FURNITURE_CATALOG, CATALOG_BY_TYPE } from './furniture.js';
+import { Viewer3D, LENSES }  from './viewer3d.js';
+import { FURNITURE_CATALOG, CATALOG_BY_TYPE, isBuiltIn } from './furniture.js';
 import { WALL_FINISHES, FLOOR_FINISHES, ROOF_FINISHES } from './textures.js';
 import { buildHouse191 }     from './house191.js';
 import { buildDreamHouse }   from './houseDream.js';
@@ -24,7 +24,7 @@ const uid = p => `${p}${Date.now().toString(36)}${Math.random().toString(36).sli
 // ── State ──────────────────────────────────────────────────────────────────
 const state = {
   floors: [], activeFloor: 0, site: { roofs: [] },
-  view3d: { level: 'all', roof: true, ceilings: false, cutaway: false, walk: false },
+  view3d: { level: 'all', roof: true, ceilings: false, cutaway: false, walk: false, decor: true, lens: 'wide' },
   tool: 'select', pendingAdd: null, selectedId: null, mode: '2d',
 };
 // The 2D editor works on "the" rooms/walls/furniture — map them onto the active floor.
@@ -273,6 +273,7 @@ function _refreshProps() {
     _qs('#pp-furn-d').value           = obj.depth.toFixed(2);
     _qs('#pp-furn-ht').value          = (obj.height ?? cat?.height3d ?? 2.5).toFixed(2);
     _qs('#pp-furn-lift').value        = (obj.lift ?? cat?.lift ?? 0).toFixed(2);
+    _qs('#pp-furn-built').checked     = isBuiltIn(obj);
     const deg = Math.round(((obj.rotation * 180 / Math.PI) % 360 + 540) % 360 - 180);
     _qs('#pp-furn-rot').value         = deg;
     _qs('#pp-furn-rot-val').textContent = `${deg}°`;
@@ -396,6 +397,12 @@ function _bindPropsPanel() {
   });
   _qs('#pp-furn-open')?.addEventListener('change', () => _commit());
   _qs('#pp-furn-pattern')?.addEventListener('change', e => { const f = _selected(); if (f) { f.pattern = e.target.value; _commit(); } });
+  _qs('#pp-furn-built')?.addEventListener('change', e => {
+    const f = _selected(); if (!f) return;
+    delete f.builtIn;
+    if (isBuiltIn(f) !== e.target.checked) f.builtIn = e.target.checked;   // only store it when it differs from the type's default
+    _commit();
+  });
   _qs('#pp-furn-color')?.addEventListener('input', e => { const f = _selected(); if (f) { f.color = e.target.value; _commit(false); } });
   _qs('#pp-furn-color2')?.addEventListener('input', e => { const f = _selected(); if (f) { f.color2 = e.target.value; _commit(false); } });
   _qs('#pp-furn-dup')?.addEventListener('click', () => { if (kindOf(state.selectedId) === 'item') _duplicateFurniture(state.selectedId); });
@@ -528,12 +535,25 @@ function _bind3DBar() {
     _qs(`#v3-${k}`)?.classList.toggle('active', state.view3d[k]);
   }
   _on('v3-walk', 'click', () => _setWalk(true));
+  _on('v3-decor', 'click', () => {
+    viewer?.setDecor(!(state.view3d.decor !== false));
+    _qs('#v3-decor').classList.toggle('active', state.view3d.decor !== false);
+  });
+  const lensKeys = Object.keys(LENSES);
+  const syncLens = () => { _qs('#walk-lens').textContent = '🔭 ' + LENSES[state.view3d.lens || 'wide'].label; };
+  _on('walk-lens', 'click', () => {
+    const next = lensKeys[(lensKeys.indexOf(state.view3d.lens || 'wide') + 1) % lensKeys.length];
+    viewer?.setLens(next); syncLens();
+    try { const p = JSON.parse(localStorage.getItem('house-render') || '{}'); p.lens = next; localStorage.setItem('house-render', JSON.stringify(p)); } catch (_) {}
+  });
   // Time of day, house lights, render quality (remembered per device)
   let pref = {};
   try { pref = JSON.parse(localStorage.getItem('house-render') || '{}'); } catch (_) {}
   if (pref.time) state.view3d.time = pref.time;
   if (pref.quality) state.view3d.quality = pref.quality;
-  const savePref = () => { try { localStorage.setItem('house-render', JSON.stringify({ time: state.view3d.time, quality: state.view3d.quality })); } catch (_) {} };
+  if (pref.lens && LENSES[pref.lens]) state.view3d.lens = pref.lens;
+  syncLens();
+  const savePref = () => { try { localStorage.setItem('house-render', JSON.stringify({ time: state.view3d.time, quality: state.view3d.quality, lens: state.view3d.lens })); } catch (_) {} };
   const timeEl = _qs('#v3-time');
   const syncTime = () => {
     timeEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.t === (state.view3d.time || 'day')));

@@ -14,7 +14,6 @@ const STEP_UP = 1.05;        // tallest step you can walk up
 const MAX_DROP = 2.6;        // won't walk off ledges taller than this
 // Real-world scale (feet). Person 5'10" → eyes ~4.5" below the crown.
 export const PERSON_H = 5.83;
-const EYE = PERSON_H - 0.375;        // 5'5.5"
 const WALK = 4.4, JOG = 9;           // 3 mph stroll · 6 mph jog (push the stick to its edge / hold Shift)
 const NO_COLLIDE = new Set(['rug', 'stairs', 'stairsDown', 'stairOpening', 'steps', 'joists', 'ceilingLight', 'pendant',
   'lantern', 'curtains', 'wallArt', 'mirror', 'hosta', 'door', 'slider', 'window', 'opening', 'garageDoor', 'tableLamp', 'tv', 'elecPanel']);
@@ -31,7 +30,7 @@ export class Walker {
     this.thirdPerson = pref.third ?? true;
     this.shirtIdx = pref.shirt ?? 0;
     this.char = makeCharacter({ shirt: SHIRT_COLORS[this.shirtIdx % SHIRT_COLORS.length] });
-    this.char.group.scale.setScalar(PERSON_H / 5.7);   // model is 5'8.4" tall as built
+    this.setPersonHeight(this.v.view.personH ?? PERSON_H);
     this.v.scene.add(this.char.group);
 
     this.pos = new THREE.Vector3();   // feet (world): x, y, z
@@ -51,6 +50,12 @@ export class Walker {
     this._bindInput();
     this._syncUI();
     this._updateVisibility(true);
+  }
+
+  /** Height of the person you walk as (feet); eyes sit 4½" below the top of the head. */
+  setPersonHeight(ft) {
+    this.personH = ft; this.eye = ft - 0.375;
+    this.char.group.scale.setScalar(ft / 5.7);   // model is 5'8.4" tall as built
   }
 
   // ── World (colliders + walkable surfaces) ────────────────────────────────
@@ -86,6 +91,7 @@ export class Walker {
       for (const r of f.rooms) slabs.push({ x0: r.x, x1: r.x + r.width, z0: r.y, z1: r.y + r.height, top: f.elev + (r.offset || 0), holes, fi, room: r });
       // furniture → oriented boxes; stairs/steps → ramps
       for (const it of f.furniture) {
+        if (!this.v.itemShown(it)) continue;
         const cat = CATALOG_BY_TYPE[it.type]; if (!cat) continue;
         const y = this.v._itemY(f, fi, it, cat), h = it.height ?? cat.height3d ?? 2.5;
         const m = cat.model;
@@ -393,11 +399,11 @@ export class Walker {
       const sp = this._speedNow || 0;
       if (sp > 0.2) this._bob = (this._bob || 0) + dt * (5.2 + sp * 0.55); else this._bob = 0;
       const bob = Math.sin(this._bob * 2) * 0.03 * Math.min(1, sp / WALK);
-      cam.position.set(this.pos.x, this.pos.y + EYE + bob, this.pos.z);
+      cam.position.set(this.pos.x, this.pos.y + this.eye + bob, this.pos.z);
       cam.lookAt(cam.position.clone().add(dir));
       return;
     }
-    const target = new THREE.Vector3(this.pos.x, this.pos.y + PERSON_H - 0.9, this.pos.z);
+    const target = new THREE.Vector3(this.pos.x, this.pos.y + this.personH - 0.9, this.pos.z);
     let dist = this.camDist;
     // keep a wall or ceiling from getting between the camera and the character
     this._ray.set(target, dir.clone().negate());
