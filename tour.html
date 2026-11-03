@@ -31,17 +31,18 @@
         <div id="t-agent-name" class="t-agent-name"></div>
         <div id="t-agent-firm" class="t-agent-firm"></div>
       </div>
-      <a id="t-agent-call" class="t-icon-btn" aria-label="Call">📞</a>
-      <a id="t-agent-mail" class="t-icon-btn" aria-label="Email">✉</a>
+      <a id="t-agent-call" class="t-icon-btn" data-icon="phone" aria-label="Call"></a>
+      <a id="t-agent-mail" class="t-icon-btn" data-icon="mail" aria-label="Email"></a>
     </aside>
 
     <!-- Main controls -->
     <nav id="t-bar" class="card">
-      <button id="t-walk" class="t-btn t-primary">🚶 Walk through</button>
+      <button id="t-walk" class="t-btn t-primary" data-icon="walk">Walk through</button>
       <div id="t-floors" class="t-seg" role="group" aria-label="Floors"></div>
-      <button id="t-decor" class="t-btn active" aria-pressed="true">🛋 Furnished</button>
-      <button id="t-time" class="t-btn" title="Time of day">☀</button>
-      <button id="t-more" class="t-btn" aria-label="Settings">⚙</button>
+      <button id="t-decor" class="t-btn active" data-icon="sofa" aria-pressed="true">Furnished</button>
+      <button id="t-time" class="t-btn t-icon" data-icon="sun" title="Time of day" aria-label="Time of day"></button>
+      <button id="t-full" class="t-btn t-icon" data-icon="expand" title="Full screen" aria-label="Full screen"></button>
+      <button id="t-more" class="t-btn t-icon" data-icon="gear" aria-label="Settings"></button>
     </nav>
 
     <!-- Settings sheet -->
@@ -55,8 +56,8 @@
       <label>Picture quality
         <select id="t-quality"></select>
       </label>
-      <button id="t-lights" class="t-btn">💡 House lights</button>
-      <button id="t-share" class="t-btn">🔗 Share this tour</button>
+      <button id="t-lights" class="t-btn" data-icon="bulb">House lights</button>
+      <button id="t-share" class="t-btn" data-icon="share">Share this tour</button>
       <p class="t-sheet-note">"Furnished" off shows only what sells with the house: cabinets, appliances, built-ins and fixtures.</p>
     </div>
 
@@ -71,13 +72,15 @@
     <div id="walk-ui" style="display:none">
       <div id="walk-touch"></div>
       <div id="joy-base"><div id="joy-knob"></div></div>
-      <div id="walk-where"></div>
+      <button id="walk-where-btn" class="walk-btn walk-where-btn" aria-haspopup="true" title="Go to a room"><span data-icon="pin"></span><span id="walk-where"></span><span data-icon="chev"></span></button>
+      <div id="walk-rooms" class="card" hidden></div>
       <div id="walk-btns">
-        <button id="walk-cam" class="walk-btn">👁 First person</button>
-        <button id="walk-lens" class="walk-btn">🔭 Wide</button>
-        <button id="walk-time" class="walk-btn" title="Time of day">☀</button>
-        <button id="walk-shirt" class="walk-btn" title="Change shirt color"><span class="shirt-dot"></span></button>
-        <button id="walk-exit" class="walk-btn">✕ Exit</button>
+        <button id="walk-decor" class="walk-btn" data-icon="sofa" aria-pressed="true">Furnished</button>
+        <button id="walk-cam" class="walk-btn">First person</button>
+        <button id="walk-lens" class="walk-btn" data-icon="lens">Wide</button>
+        <button id="walk-time" class="walk-btn" title="Time of day" aria-label="Time of day"></button>
+        <button id="walk-shirt" class="walk-btn" title="Change shirt color" aria-label="Shirt color"><span class="shirt-dot"></span></button>
+        <button id="walk-exit" class="walk-btn" data-icon="close">Exit</button>
       </div>
       <p class="t-walk-hint">Left thumb moves · swipe to look</p>
     </div>

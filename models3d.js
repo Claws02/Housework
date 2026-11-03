@@ -251,29 +251,28 @@ B.crib = (k, w, d, h, c, c2) => {
   for (const sx of [-1, 1]) { k.box(0.12, 0.12, d, fm, sx * (w / 2 - 0.06), h - 0.12, 0); for (let z = -d / 2 + 0.25; z < d / 2 - 0.1; z += 0.22) k.box(0.06, h - 1.4, 0.06, fm, sx * (w / 2 - 0.06), 1.3, z); }
 };
 
-B.nightstand = (k, w, d, h, c) => {
+B.nightstand = (k, w, d, h, c) => {      // two-drawer nightstand: eased top, shaker drawers, tapered legs
   const m = c.toLowerCase() > '#d' ? M.plain(c, 0.45) : M.wood(c);
-  k.box(w, h - 0.35, d, m, 0, 0.35, 0);
-  k.box(w + 0.06, 0.08, d + 0.06, m, 0, h - 0.08, 0);
-  legs4(k, w, d, 0.35, 0.06, m, 0.1, false);
-  const rows = 2, rh = (h - 0.55) / rows;
-  for (let i = 0; i < rows; i++) {
-    k.box(w - 0.12, rh - 0.05, 0.05, m, 0, 0.4 + i * rh, d / 2);
-    k.sph(0.05, M.nickel(), 0, 0.4 + i * rh + rh / 2, d / 2 + 0.07);
-  }
+  const legH = 0.42, top = 0.09;
+  k.rbox(w + 0.06, top, d + 0.05, 0.03, m, 0, h - top, 0);
+  k.box(w - 0.04, h - legH - top, d - 0.06, m, 0, legH, -0.03);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) k.cyl(0.055, 0.035, legH, m, sx * (w / 2 - 0.1), 0, sz * (d / 2 - 0.1), 8);
+  const rows = 2, rh = (h - legH - top - 0.06) / rows;
+  for (let i = 0; i < rows; i++) drawerFront(k, w - 0.14, rh - 0.04, d / 2 - 0.06, m, 0, legH + 0.03 + i * rh);
 };
 
-B.dresser = (k, w, d, h, c) => {
+B.dresser = (k, w, d, h, c) => {         // dresser / chest: eased top, plinth, shaker drawers with bar pulls
   const m = c.toLowerCase() > '#d' ? M.plain(c, 0.45) : M.wood(c);
-  k.box(w, h - 0.3, d, m, 0, 0.3, 0);
-  k.box(w + 0.08, 0.1, d + 0.06, m, 0, h - 0.1, 0);
-  k.box(w, 0.3, d - 0.1, m, 0, 0, 0);
-  const rows = Math.max(2, Math.round((h - 0.5) / 0.75)), cols = w > 3.6 ? 2 : 1;
-  const rh = (h - 0.5) / rows, cw = (w - 0.1) / cols;
+  const plinth = 0.32, top = 0.1;
+  k.rbox(w + 0.1, top, d + 0.07, 0.035, m, 0, h - top, 0.01);
+  k.box(w, h - plinth - top, d - 0.04, m, 0, plinth, -0.02);
+  k.box(w - 0.08, plinth - 0.06, d - 0.12, m, 0, 0, -0.02);                    // recessed base
+  k.box(w + 0.02, 0.08, d - 0.02, m, 0, plinth - 0.08, -0.01);                 // base moulding
+  const rows = Math.max(2, Math.round((h - plinth - top) / 0.72)), cols = w > 3.6 ? 2 : 1;
+  const rh = (h - plinth - top - 0.06) / rows, cw = (w - 0.1) / cols;
   for (let r = 0; r < rows; r++) for (let col = 0; col < cols; col++) {
-    const x = -w / 2 + 0.05 + cw * col + cw / 2, y = 0.35 + r * rh;
-    k.box(cw - 0.06, rh - 0.06, 0.05, m, x, y, d / 2);
-    for (const sx of cols === 1 ? [-0.25, 0.25] : [0]) k.sph(0.045, M.nickel(), x + sx * cw, y + rh / 2, d / 2 + 0.07);
+    const x = -w / 2 + 0.05 + cw * col + cw / 2;
+    drawerFront(k, cw - 0.05, rh - 0.04, d / 2 - 0.04, m, x, plinth + 0.03 + r * rh);
   }
 };
 
@@ -417,25 +416,36 @@ B.petBed = (k, w, d, h, c) => {
 };
 
 // Dining
-B.diningTable = (k, w, d, h, c) => {
-  const m = M.wood(c);
-  k.box(w, 0.13, d, m, 0, h - 0.13, 0);
-  k.box(w - 0.6, 0.3, d - 0.6, m, 0, h - 0.43, 0);
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    const x = sx * (w / 2 - 0.35), z = sz * (d / 2 - 0.35);
-    k.cyl(0.11, 0.08, h - 0.13, m, x, 0, z, 10);
-    k.sph(0.13, m, x, h * 0.6, z);
-  }
+B.diningTable = (k, w, d, h, c) => {     // farmhouse table: thick eased top, apron, turned legs
+  const m = M.wood(c), top = 0.14, ins = 0.38;
+  k.rbox(w, top, d, 0.045, m, 0, h - top, 0);
+  k.box(w - 2 * ins + 0.1, 0.32, 0.07, m, 0, h - top - 0.32, d / 2 - ins + 0.03);
+  k.box(w - 2 * ins + 0.1, 0.32, 0.07, m, 0, h - top - 0.32, -d / 2 + ins - 0.03);
+  k.box(0.07, 0.32, d - 2 * ins + 0.1, m, w / 2 - ins + 0.03, h - top - 0.32, 0);
+  k.box(0.07, 0.32, d - 2 * ins + 0.1, m, -w / 2 + ins - 0.03, h - top - 0.32, 0);
+  const H = h - top;
+  const turned = [[0, 0], [0.075, 0], [0.085, 0.05], [0.06, 0.12], [0.07, H * 0.3], [0.1, H * 0.42], [0.06, H * 0.5], [0.075, H * 0.62],
+    [0.105, H * 0.72], [0.105, H], [0, H]];
+  const leg = geo(`turnleg${r3(H)}`, () => new THREE.LatheGeometry(turned.map(([r, y]) => new THREE.Vector2(r, y)), 16));
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) k._put(new THREE.Mesh(leg, m), sx * (w / 2 - ins), 0, sz * (d / 2 - ins));
 };
 
-B.diningChair = (k, w, d, h, c, c2) => {
-  const m = M.wood(c), seatH = 1.5;
-  legs4(k, w, d, seatH, 0.055, m, 0.1);
-  k.box(w, 0.12, d, m, 0, seatH, 0);
-  cushion(k, w - 0.12, 0.12, d - 0.15, M.fabric(c2), 0, seatH + 0.1, 0.03);
-  for (const sx of [-1, 1]) k.box(0.1, h - seatH, 0.1, m, sx * (w / 2 - 0.1), seatH, -d / 2 + 0.08);
-  k.box(w - 0.1, 0.22, 0.08, m, 0, h - 0.25, -d / 2 + 0.08);
-  k.box(w * 0.3, h - seatH - 0.4, 0.05, m, 0, seatH + 0.12, -d / 2 + 0.08);   // vase splat
+B.diningChair = (k, w, d, h, c, c2) => {  // spindle-back dining chair: saddle seat, splayed legs, curved crest rail
+  const m = M.wood(c), seatH = 1.5, sw = w - 0.08, sd = d - 0.1;
+  k.rbox(sw, 0.13, sd, 0.05, m, 0, seatH - 0.13, 0.02);
+  if (c2) cushion(k, sw - 0.2, 0.09, sd - 0.3, M.fabric(c2), 0, seatH - 0.02, 0.06);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const lg = k.cyl(0.045, 0.06, seatH - 0.1, m, sx * (sw / 2 - 0.12), 0, sz * (sd / 2 - 0.12), 8);
+    lg.rotation.set(sz * 0.06, 0, -sx * 0.06);
+  }
+  for (const sz of [-1, 1]) k.rod(-sw / 2 + 0.14, sz * (sd / 2 - 0.13), sw / 2 - 0.14, sz * (sd / 2 - 0.13), 0.5, 0.025, m);   // stretchers
+  const bz = -sd / 2 + 0.1, top = h - 0.1;
+  for (const sx of [-1, 1]) { const p = k.cyl(0.045, 0.05, top - seatH + 0.05, m, sx * (sw / 2 - 0.1), seatH - 0.05, bz, 8); p.rotation.x = -0.1; }
+  k.rbox(sw - 0.1, 0.2, 0.09, 0.04, m, 0, top - 0.16, bz - 0.06);                        // crest rail
+  for (let i = 0; i < 5; i++) {
+    const x = -sw / 2 + 0.24 + i * (sw - 0.48) / 4;
+    const sp = k.cyl(0.018, 0.018, top - seatH - 0.08, m, x, seatH, bz - 0.01, 6); sp.rotation.x = -0.1;
+  }
 };
 
 B.hutch = (k, w, d, h, c, c2, it) => {
@@ -505,6 +515,32 @@ B.microwave = (k, w, d, h) => {
 B.ceilingLight = (k, w, d, h) => {
   k.cyl(w * 0.5, w * 0.42, h, lampMat('#f6f4ee', '#ffe9c4', 0.9, { roughness: 0.3 }), 0, 0, 0, 24);
   k.cyl(w * 0.52, w * 0.52, 0.04, M.nickel(), 0, h - 0.04, 0, 24);
+};
+
+B.pendant = (k, w, d, h, c, c2, it, ctx) => {   // glass bell pendant; wide ones (w > 1.6') are a 5-arm chandelier
+  const lift = it.lift ?? 6.2, drop = Math.max(0.2, (ctx.ceil ?? 8) - lift - h);
+  const metal = mat('plain', '#2b2b2e', { roughness: 0.35, metalness: 0.8 });
+  k.cyl(0.015, 0.015, drop, metal, 0, h, 0, 6);                                 // cord / down-rod
+  k.cyl(0.22, 0.22, 0.05, metal, 0, h + drop - 0.05, 0, 16);                   // ceiling canopy
+  if (w > 1.6) {
+    k.cyl(0.05, 0.05, h * 0.6, metal, 0, h * 0.2, 0, 8);
+    k.sph(0.08, metal, 0, h * 0.18, 0);
+    const R = w / 2 - 0.2;
+    for (let i = 0; i < 5; i++) {
+      const a = i / 5 * Math.PI * 2, x = Math.cos(a) * R, z = Math.sin(a) * R;
+      k.rod(0, 0, x, z, h * 0.3, 0.02, metal);
+      k.cyl(0.035, 0.05, 0.12, metal, x, h * 0.3, z, 8);
+      k.cyl(0.13, 0.19, 0.28, M.shade(), x, h * 0.3 + 0.08, z, 14);
+      k.sph(0.05, M.bulb(), x, h * 0.3 + 0.18, z);
+    }
+    return;
+  }
+  const r = w / 2;
+  const bell = [[0.03, h], [0.09, h * 0.97], [r * 0.45, h * 0.82], [r * 0.82, h * 0.42], [r, 0.04], [r * 0.98, 0]];
+  const g = geo(`pbell${r3(r)},${r3(h)}`, () => new THREE.LatheGeometry(bell.map(([x, y]) => new THREE.Vector2(x, y)), 28));
+  k._put(new THREE.Mesh(g, mat('plain', '#eef3f2', { roughness: 0.08, metalness: 0, transparent: true, opacity: 0.38, side: THREE.DoubleSide, depthWrite: false })), 0, 0, 0);
+  k.cyl(0.07, 0.07, 0.14, metal, 0, h - 0.1, 0, 12);
+  k.sph(0.09, M.bulb(), 0, h * 0.45, 0, 1, 1.3, 1);
 };
 
 B.lantern = (k, w, d, h, c, c2, it, ctx) => {   // porch pendant lantern
@@ -947,23 +983,59 @@ B.trashBin = (k, w, d, h, c) => {
   for (const sx of [-1, 1]) { const wh = k.cyl(0.3, 0.3, 0.2, M.rubber(), sx * (w / 2 - 0.15), 0.3, -d / 2 + 0.15, 14); wh.rotation.z = Math.PI / 2; wh.position.y = 0.3; }
 };
 
-B.car = (k, w, d, h, c) => {
-  const body = M.plain(c, 0.25, { metalness: 0.6 }), gl = mat('plain', '#1d2a33', { roughness: 0.05, metalness: 0.5 });
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    const wh = k.cyl(1.05, 1.05, 0.75, M.rubber(), sx * (w / 2 - 0.4), 1.05, sz * (d / 2 - 2.8), 18);
-    wh.rotation.z = Math.PI / 2; wh.position.y = 1.05;
-    const rim = k.cyl(0.65, 0.65, 0.78, M.steel(), sx * (w / 2 - 0.4), 1.05, sz * (d / 2 - 2.8), 14); rim.rotation.z = Math.PI / 2; rim.position.y = 1.05;
-  }
-  k.rbox(w, 1.9, d, 0.5, body, 0, 0.8, 0);
-  k.rbox(w - 0.5, 1.6, d * 0.48, 0.5, body, 0, 2.4, -d * 0.05);
-  k.rbox(w - 0.45, 1.25, d * 0.46, 0.4, gl, 0, 2.5, -d * 0.05);
+B.car = (k, w, d, h, c) => {             // crossover: extruded side profile, glass greenhouse, wheels in arches
+  const body = M.plain(c, 0.22, { metalness: 0.55 }), gl = mat('plain', '#16212a', { roughness: 0.04, metalness: 0.6 });
+  const trim = M.plain('#1b1d20', 0.6), L = d, H = h;
+  const wr = 1.05, wz = L / 2 - 2.9;                                          // wheel radius, axle offset from centre
+  const prof = new THREE.Shape();
+  prof.moveTo(-L / 2, 0.75);
+  prof.lineTo(-wz - wr - 0.15, 0.75); prof.absarc(-wz, 0.75, wr + 0.15, Math.PI, 0, true);
+  prof.lineTo(wz - wr - 0.15, 0.75); prof.absarc(wz, 0.75, wr + 0.15, Math.PI, 0, true);
+  prof.lineTo(L / 2, 0.75); prof.lineTo(L / 2, 2.15);
+  prof.quadraticCurveTo(L / 2 - 0.1, 2.55, L / 2 - 0.9, 2.7);                 // nose → hood
+  prof.lineTo(L / 2 - 3.4, 2.95); prof.lineTo(-L / 2 + 1.3, 3.05);            // beltline
+  prof.quadraticCurveTo(-L / 2 + 0.15, 3.0, -L / 2, 2.4); prof.closePath();
+  const bevel = 0.28;
+  const bg = geo(`carbody${r3(L)},${r3(w)}`, () => {
+    const g = new THREE.ExtrudeGeometry(prof, { depth: w - 2 * bevel, bevelEnabled: true, bevelThickness: bevel, bevelSize: 0.18, bevelSegments: 3, curveSegments: 10 });
+    g.translate(0, 0, -(w - 2 * bevel) / 2); g.rotateY(-Math.PI / 2); return g;
+  });
+  k._put(new THREE.Mesh(bg, body), 0, 0, 0);
+  // greenhouse: tapered glass with a body-coloured roof and pillars
+  const gh = new THREE.Shape();
+  gh.moveTo(L / 2 - 3.4, 2.95); gh.lineTo(L / 2 - 5.6, H - 0.12); gh.lineTo(-L / 2 + 2.6, H - 0.12); gh.lineTo(-L / 2 + 1.0, 3.04); gh.closePath();
+  const gg = geo(`cargh${r3(L)},${r3(w)},${r3(H)}`, () => {
+    const g = new THREE.ExtrudeGeometry(gh, { depth: w - 0.9, bevelEnabled: true, bevelThickness: 0.12, bevelSize: 0.08, bevelSegments: 2 });
+    g.translate(0, 0, -(w - 0.9) / 2); g.rotateY(-Math.PI / 2); return g;
+  });
+  k._put(new THREE.Mesh(gg, gl), 0, 0, 0);
+  k.rbox(w - 0.75, 0.14, L / 2 - 5.6 + L / 2 - 2.6 + 0.2, 0.06, body, 0, H - 0.12, (L / 2 - 5.6 - L / 2 + 2.6) / 2);   // roof skin
   for (const sx of [-1, 1]) {
-    k.box(1.1, 0.35, 0.1, mat('plain', '#fffbe8', { emissive: '#fff4c0', emissiveIntensity: 0.4 }), sx * (w / 2 - 0.9), 2.1, d / 2 - 0.02);
-    k.box(1.1, 0.35, 0.1, mat('plain', '#b01010', { emissive: '#600000' }), sx * (w / 2 - 0.9), 2.1, -d / 2 + 0.02);
+    k.box(0.06, H - 3.1, 0.32, body, sx * (w / 2 - 0.47), 3.0, -0.3);                      // B-pillar
+    k.box(0.1, 0.06, 0.45, trim, sx * (w / 2 + 0.02), 2.55, 0.6); k.box(0.1, 0.06, 0.45, trim, sx * (w / 2 + 0.02), 2.55, -1.9);   // handles
+    k.rbox(0.45, 0.28, 0.35, 0.1, body, sx * (w / 2 + 0.12), 2.95, L / 2 - 3.6);                 // mirror
+    k.box(0.12, 0.35, 1.0, trim, sx * (w / 2 - 0.05), 0.75, 0);                             // rocker trim
+  }
+  // lights, grille, bumpers
+  for (const sx of [-1, 1]) {
+    k.rbox(1.0, 0.3, 0.12, 0.08, mat('plain', '#fffbe8', { emissive: '#fff4c0', emissiveIntensity: 0.35, roughness: 0.1 }), sx * (w / 2 - 0.85), 2.25, L / 2 - 0.05);
+    k.rbox(1.0, 0.28, 0.12, 0.08, mat('plain', '#9a0d0d', { emissive: '#5a0000', roughness: 0.2 }), sx * (w / 2 - 0.85), 2.55, -L / 2 + 0.06);
+  }
+  k.rbox(w * 0.45, 0.45, 0.1, 0.06, trim, 0, 1.55, L / 2 + 0.01);
+  k.rbox(w - 0.2, 0.42, 0.3, 0.12, trim, 0, 0.75, L / 2 - 0.1); k.rbox(w - 0.2, 0.42, 0.3, 0.12, trim, 0, 0.75, -L / 2 + 0.1);
+  // wheels: tyre, alloy rim with spokes
+  const tyre = geo(`tyre${r3(wr)}`, () => new THREE.TorusGeometry(wr - 0.3, 0.32, 10, 28));
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const x = sx * (w / 2 - 0.42), z = sz * wz;
+    const t = k._put(new THREE.Mesh(tyre, M.rubber()), x, wr, z); t.rotation.y = Math.PI / 2; t.scale.z = 1.5;
+    const rim = k.cyl(0.62, 0.62, 0.5, M.steel(), x, wr, z, 20); rim.rotation.z = Math.PI / 2; rim.position.y = wr;
+    for (let i = 0; i < 5; i++) {
+      const sp = k.box(0.04, 1.05, 0.13, mat('plain', '#9ba1a8', { roughness: 0.3, metalness: 0.8 }), x + sx * 0.27, wr, z);
+      sp.position.y = wr; sp.rotation.x = i * Math.PI * 2 / 5;
+    }
   }
 };
 
-// Outdoor
 B.tree = (k, w, d, h, c, c2, it) => {
   const rnd = seeded(it.id), trunkH = h * 0.42;
   const bark = it.type === 'tree-birch' ? mat('plain', '#e9e5dc', { roughness: 0.9 }) : M.bark();

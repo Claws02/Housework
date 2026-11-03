@@ -3,6 +3,8 @@
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
+import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
@@ -13,21 +15,21 @@ import { LAMP_MATS } from './models3d.js';
 // ── Time of day ──────────────────────────────────────────────────────────────
 // elevation/azimuth in degrees; azimuth 0 = from +z (the street side), 90 = from +x.
 export const TIMES = {
-  morning: { label: '🌅 Morning', elev: 14, azim: 100, sun: '#ffd2a0', sunI: 2.3, hemiSky: '#e3dcd2', hemiGround: '#6b5f52', hemiI: 0.5, env: 0.6, exposure: 1.0, inHemi: 0.8, inEnv: 0.2,
+  morning: { win: { color: '#ffe6c8', I: 3.2 }, label: '🌅 Morning', elev: 14, azim: 100, sun: '#ffd2a0', sunI: 2.3, hemiSky: '#e3dcd2', hemiGround: '#6b5f52', hemiI: 0.5, env: 0.6, exposure: 1.0, inHemi: 0.8, inEnv: 0.2,
              sky: { turbidity: 6, rayleigh: 1.8, mie: 0.005, mieG: 0.84 }, fog: '#e6d2bf', lights: false },
-  day:     { label: '☀ Day',     elev: 50, azim: 210, sun: '#fff1dc', sunI: 2.5, hemiSky: '#d6e6fa', hemiGround: '#8a7f70', hemiI: 0.7, env: 0.75, exposure: 0.95, inHemi: 1.25, inEnv: 0.3,
+  day:     { win: { color: '#eef3ff', I: 4.0 }, label: '☀ Day',     elev: 50, azim: 210, sun: '#fff1dc', sunI: 2.5, hemiSky: '#d6e6fa', hemiGround: '#8a7f70', hemiI: 0.7, env: 0.75, exposure: 0.95, inHemi: 1.25, inEnv: 0.3,
              sky: { turbidity: 3.5, rayleigh: 1.1, mie: 0.003, mieG: 0.78 }, fog: '#c4d8ea', lights: false },
-  evening: { label: '🌇 Evening', elev: 7,  azim: 255, sun: '#ffb46b', sunI: 2.2, hemiSky: '#f2c9a6', hemiGround: '#5b4b40', hemiI: 0.42, env: 0.5, exposure: 1.05, inHemi: 0.45, inEnv: 0.12,
+  evening: { win: { color: '#ffc994', I: 1.1 }, label: '🌇 Evening', elev: 7,  azim: 255, sun: '#ffb46b', sunI: 2.2, hemiSky: '#f2c9a6', hemiGround: '#5b4b40', hemiI: 0.42, env: 0.5, exposure: 1.05, inHemi: 0.45, inEnv: 0.12,
              sky: { turbidity: 9, rayleigh: 2.6, mie: 0.006, mieG: 0.88 }, fog: '#e5b996', lights: true },
-  night:   { label: '🌙 Night',   elev: 38, azim: 140, sun: '#a9bdff', sunI: 0.4, hemiSky: '#34486e', hemiGround: '#1c1c1c', hemiI: 0.34, env: 0.15, exposure: 1.3, inHemi: 0.25, inEnv: 0.05,
+  night:   { win: { color: '#5a6c99', I: 0.0 }, label: '🌙 Night',   elev: 38, azim: 140, sun: '#a9bdff', sunI: 0.4, hemiSky: '#34486e', hemiGround: '#1c1c1c', hemiI: 0.34, env: 0.15, exposure: 1.3, inHemi: 0.25, inEnv: 0.05,
              sky: null, fog: '#0d1422', lights: true },
 };
 
 // ── Quality levels ──────────────────────────────────────────────────────────
 export const QUALITY = {
-  low:    { label: 'Low',    pixelRatio: 1,   shadow: 2048, soft: false, ao: false, bloom: false, lamps: 2, msaa: 0 },
-  medium: { label: 'Medium', pixelRatio: 1.5, shadow: 2048, soft: true,  ao: true,  bloom: false, lamps: 4, msaa: 4 },
-  high:   { label: 'High',   pixelRatio: 2,   shadow: 4096, soft: true,  ao: true,  bloom: true,  lamps: 8, msaa: 4 },
+  low:    { label: 'Low',    pixelRatio: 1,   shadow: 2048, soft: false, ao: false, bloom: false, lamps: 2, wins: 2, msaa: 0 },
+  medium: { label: 'Medium', pixelRatio: 1.5, shadow: 2048, soft: true,  ao: true,  bloom: false, lamps: 4, wins: 4, msaa: 4 },
+  high:   { label: 'High',   pixelRatio: 2,   shadow: 4096, soft: true,  ao: true,  bloom: true,  lamps: 8, wins: 6, msaa: 4 },
 };
 
 export function defaultQuality() {
@@ -48,6 +50,12 @@ const FIXTURES = {
 };
 export const isFixture = model => !!FIXTURES[model];
 
+// AgX tone mapping (set in the viewer) reads a little darker than ACES; lift exposure to match listing-photo brightness.
+export const EXPOSURE_GAIN = 1.15;
+
+// Mean brightness each HDRI is scaled to (sun hot spot clipped), so it matches the tuned TIMES intensities.
+const HDRI_TARGET = { apartment: 0.9 };
+
 export class Atmosphere {
   constructor(scene, renderer) {
     this.scene = scene; this.renderer = renderer;
@@ -64,6 +72,9 @@ export class Atmosphere {
     this.sunDir = new THREE.Vector3();
     this._pmrem = new THREE.PMREMGenerator(renderer);
     this._skyScene = new THREE.Scene();
+    RectAreaLightUniformsLib.init();
+    this.winLights = [];            // pooled area lights: daylight coming in through the nearest windows
+    this.windows = [];
     this.lamps = [];                // pooled point lights
     this.fixtures = [];             // [{pos, I, dist}] gathered on scene build
     this.lightsOn = null;           // null = follow time of day
@@ -76,7 +87,7 @@ export class Atmosphere {
     this.sunDir.setFromSphericalCoords(1, phi, theta);
     this.sun.color.set(t.sun); this.sun.intensity = t.sunI;
     this._applyFill(t);
-    this.renderer.toneMappingExposure = t.exposure;
+    this.renderer.toneMappingExposure = t.exposure * EXPOSURE_GAIN;
     this.shadowDirty = true;
     this.scene.fog = new THREE.Fog(t.fog, 260, 900);
 
@@ -106,9 +117,44 @@ export class Atmosphere {
     this._skyScene.add(ground);
     this._skyEnv?.dispose?.();
     this._skyEnv = this._pmrem.fromScene(this._skyScene, 0.02, 1, 2000).texture;
-    this.scene.environment = this.indoor ? this._roomEnv() : this._skyEnv;
+    this._useEnv();
     this.applyEnv();
     this._applyLamps();
+    // swap in the photographed sky (CC0 Poly Haven HDRI) once it has loaded
+  }
+
+  /** Lighting & reflections: a real photographed environment when loaded (outdoors: the time of day's sky;
+   *  indoors: a furnished interior), else the generated sky / room. */
+  _useEnv() {
+    const t = TIMES[this.timeKey];
+    // outdoors the generated sky matches the sun exactly and looks better on the siding; inside, the
+    // photographed interior gives far more natural bounce light and reflections
+    const hd = this.indoor ? this._hdris?.get('apartment') : null;
+    this.envScale = hd?.scale ?? 1;
+    this.scene.environment = hd?.tex || (this.indoor ? this._roomEnv() : this._skyEnv);
+  }
+
+  /** Load + prefilter an HDRI once. Its brightness is normalised so every map lights the house about
+   *  as strongly as the generated sky did (the tuned intensities in TIMES stay valid). */
+  _hdri(name) {
+    this._hdris ||= new Map(); this._hdriLoads ||= new Map();
+    if (this._hdris.has(name)) return Promise.resolve(this._hdris.get(name));
+    if (!this._hdriLoads.has(name)) {
+      this._hdriLoads.set(name, import(`./assets/hdri/${name}.js`).then(async mod => {
+        const tex = await new EXRLoader().setDataType(THREE.FloatType).loadAsync(mod.default);
+        const d = tex.image.data, n = d.length / 4;
+        let sum = 0;
+        for (let i = 0; i < d.length; i += 4) sum += Math.min(0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2], 8);  // ignore the sun's hot spot
+        const mean = sum / n;
+        tex.mapping = THREE.EquirectangularReflectionMapping;
+        const env = this._pmrem.fromEquirectangular(tex).texture;
+        tex.dispose();
+        const rec = { tex: env, scale: THREE.MathUtils.clamp(HDRI_TARGET[name] / Math.max(mean, 1e-3), 0.05, 20) };
+        this._hdris.set(name, rec);
+        return rec;
+      }).catch(err => { console.warn('HDRI', name, err); return null; }));
+    }
+    return this._hdriLoads.get(name);
   }
 
   /** Sky fill: outdoors it's the open sky; indoors (walking) the roof blocks most of it, so the
@@ -123,7 +169,7 @@ export class Atmosphere {
   /** three r160 has no scene.environmentIntensity, so scale each material's envMapIntensity. */
   applyEnv() {
     const t = TIMES[this.timeKey]; if (!t) return;
-    const v = this.indoor ? t.inEnv : t.env;
+    const v = (this.indoor ? t.inEnv : t.env) * (this.envScale ?? 1);
     this.scene.traverse(o => {
       if (!o.isMesh || o === this.sky) return;
       for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m && 'envMapIntensity' in m) m.envMapIntensity = v;
@@ -139,7 +185,8 @@ export class Atmosphere {
   setIndoor(v) {
     if (this.indoor === v) return;
     this.indoor = v;
-    if (this._skyEnv) this.scene.environment = v ? this._roomEnv() : this._skyEnv;
+    if (this._skyEnv) this._useEnv();
+    if (v) this._hdri('apartment').then(() => { if (this.indoor) { this._useEnv(); this.applyEnv(); } });
     if (this.timeKey) this._applyFill();
   }
 
@@ -162,6 +209,34 @@ export class Atmosphere {
     }
     while (this.lamps.length > n) this.scene.remove(this.lamps.pop());
     this._applyLamps();
+  }
+
+  /** Pool of window area lights. Kept at a fixed count; unused ones sit at intensity 0 (no shader rebuilds). */
+  setWindowCount(n) {
+    while (this.winLights.length < n) {
+      const l = new THREE.RectAreaLight(0xffffff, 0, 3, 4);
+      this.scene.add(l); this.winLights.push(l);
+    }
+    while (this.winLights.length > n) this.scene.remove(this.winLights.pop());
+    this._winTimer = 0;
+  }
+
+  /** Windows on outside walls: { pos (window centre, world), n (unit normal pointing into the room), w, h }. */
+  setWindows(list) { this.windows = list; this._winTimer = 0; }
+
+  _updateWindows(camPos) {
+    const t = TIMES[this.timeKey], on = this.indoor && t?.win?.I > 0;
+    const ranked = on ? this.windows.filter(w => Math.abs(w.pos.y - camPos.y) < 7)
+      .map(w => ({ w, d: w.pos.distanceToSquared(camPos) })).sort((a, b) => a.d - b.d) : [];
+    this.winLights.forEach((l, i) => {
+      const r = ranked[i];
+      if (!r) { l.intensity = 0; return; }
+      const { pos, n, w, h } = r.w;
+      l.width = w * 0.9; l.height = h * 0.9;
+      l.position.copy(pos).addScaledVector(n, 0.35);
+      l.lookAt(l.position.x + n.x, l.position.y + n.y, l.position.z + n.z);
+      l.color.set(t.win.color); l.intensity = t.win.I;
+    });
   }
 
   /** Fixture list is rebuilt with the scene: node = the item's 3D group, model key from the catalog. */
@@ -190,6 +265,9 @@ export class Atmosphere {
     this.sun.position.set(fx, focus.y, fz).addScaledVector(this.sunDir, 250);
     this.sun.target.updateMatrixWorld();
     if (this.shadowDirty) { this.renderer.shadowMap.needsUpdate = true; this.shadowDirty = false; }
+
+    this._winTimer = (this._winTimer ?? 0) - dt;
+    if (this._winTimer <= 0 && this.winLights.length) { this._winTimer = 0.3; this._updateWindows(camPos); }
 
     this._lampTimer = (this._lampTimer ?? 0) - dt;
     if (this._lampTimer > 0 || !this.lamps.length) return;
@@ -220,6 +298,7 @@ export class Pipeline {
     r.shadowMap.needsUpdate = true;
     atmosphere.shadowDirty = true;
     atmosphere.setLampCount(q.lamps);
+    atmosphere.setWindowCount(q.wins ?? 2);
 
     this.composer?.dispose?.();
     this.composer = null;

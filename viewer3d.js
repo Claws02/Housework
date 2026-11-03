@@ -5,7 +5,8 @@ import { isBuiltIn, CATALOG_BY_TYPE } from './furniture.js';
 import { buildModel } from './models3d.js';
 import './models_kl.js';           // registers the kitchen & living room set
 import './models_dream.js';        // registers the dream-house yard, systems, theater & gym set
-import { WALL_FINISHES, FLOOR_FINISHES, ROOF_FINISHES, finishMaterial, mat } from './textures.js';
+import './models_nature.js';       // leaf-card trees and shrubs
+import { WALL_FINISHES, FLOOR_FINISHES, ROOF_FINISHES, finishMaterial, mat, lawnMaterial } from './textures.js';
 import { Walker } from './walker.js';
 import { Atmosphere, Pipeline, defaultQuality, isFixture } from './lighting.js';
 
@@ -168,7 +169,7 @@ export class Viewer3D {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.shadowMap.autoUpdate = false;           // lighting.js flags redraws
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMapping = THREE.AgXToneMapping;           // softer, photographic highlight roll-off than ACES
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(this.renderer.domElement);
@@ -233,6 +234,7 @@ export class Viewer3D {
     this._pickables = [];
     this._itemNodes = new Map();
     this._fixtures = [];
+    this._windows = [];
     const used = new Set();
     const site = this.state.site || {};
     const top = this._topVisible();
@@ -266,6 +268,7 @@ export class Viewer3D {
     for (const k of this._modelCache.keys()) if (!used.has(k)) this._modelCache.delete(k);
     this.root.updateMatrixWorld(true);
     this.atmo.setFixtures(this._fixtures);
+    this.atmo.setWindows(this._windows);
     this.atmo.applyEnv();
     this.atmo.shadowDirty = true;
     if (this.walker) this.walker.occluders = this._pickables.filter(o => ['wall', 'roof', 'room'].includes(o.userData.pick?.kind) && o.isMesh);
@@ -297,7 +300,8 @@ export class Viewer3D {
     }
     const geo = new THREE.ShapeGeometry(shape);
     const fin = FLOOR_FINISHES.grass;
-    const m = this._ownMesh(geo, finishMaterial({ ...fin, tile: 10 }, fin.color));
+    this._lawn ||= lawnMaterial(fin, fin.color, 10);
+    const m = this._ownMesh(geo, this._lawn);
     m.rotation.x = -Math.PI / 2; m.position.y = gy; m.castShadow = false;
     this.root.add(m);
     // wide surround so the horizon isn't an edge
@@ -568,6 +572,16 @@ export class Viewer3D {
       this._pickables.push(node);
       this._itemNodes.set(it.id, node);
       if (isFixture(cat?.model)) this._fixtures.push({ node, model: cat.model, h: it.height ?? cat.height3d });
+      if (['window', 'slider', 'door'].includes(cat?.model) && (cat.model !== 'door' || it.type === 'french-door' || it.type === 'door-ext')) {
+        // daylight source if one side of the opening is indoors and the other outdoors
+        const nx = -Math.sin(it.rotation), nz = Math.cos(it.rotation), probe = 1.0;
+        const a = roomAt(floor, it.x + nx * probe, it.y + nz * probe, true), b = roomAt(floor, it.x - nx * probe, it.y - nz * probe, true);
+        const inA = !!a && !a.outdoor, inB = !!b && !b.outdoor;
+        if (inA !== inB) {
+          const s = inA ? 1 : -1, h = it.height ?? cat.height3d;
+          this._windows.push({ pos: new THREE.Vector3(it.x, floor.elev + (it.lift ?? cat.lift ?? 0) + h / 2, it.y), n: new THREE.Vector3(nx * s, 0, nz * s), w: it.width, h });
+        }
+      }
     }
   }
 

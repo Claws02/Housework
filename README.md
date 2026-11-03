@@ -44,6 +44,17 @@ appliances, built-ins, fixtures). In the designer, each item has a **Sells with 
 look roomier than in person). On a portrait phone the view is capped vertically, so it's narrower across; turning the
 phone sideways shows the most. The tour also lets the viewer set their own height.
 
+## Look & lighting
+- **Tone mapping:** AgX (softer, more photographic than ACES), with exposure lifted to listing-photo brightness.
+- **Indoors:** a real photographed interior (CC0 Poly Haven HDRI, `assets/hdri/`) lights the rooms and fills reflections,
+  and the windows nearest you become soft area lights, so daylight pools in from outside.
+- **Outdoors:** the physical sky matches the sun; leaf-card trees and shrubs (`models_nature.js`) and a patchy lawn.
+- **Photo textures (optional):** `python3 tools/fetch_textures.py` downloads CC0 Poly Haven texture sets into
+  `assets/tex/` and lists them in `assets/tex/manifest.json`. Any texture named there (oak floors, siding, roof,
+  lawn, counters, fabric…) replaces the generated one, tinted to the colour you pick; with an empty manifest the
+  app uses the generated textures. The script needs network access to `api.polyhaven.com` and `dl.polyhaven.org`.
+
+## Code map
 | File | What it does |
 |---|---|
 | `app.js` | State (floors, site, view), history, panels, palette, persistence |
@@ -56,6 +67,7 @@ phone sideways shows the most. The tour also lets the viewer set their own heigh
 | `models3d.js` | ~80 procedural furniture and fixture builders, sized from each item's width/depth/height |
 | `textures.js` | Procedural canvas textures (oak, tile, siding, shingles, brick, stone, …) and finish catalogs |
 | `furniture.js` | Catalog: dimensions, default colors, model key, wall-opening and mount flags |
+| `models_nature.js` | Leaf-card trees, pines and shrubs (alpha-tested leaf clusters with leafy shadows) |
 | `models_dream.js` | Dream-house set: privacy fence, pool, hot tub, heat pumps, generator, EV charger, home battery, mudroom lockers, litter-box cabinet, pantry shelving, ceiling beams, theater (screen, projector, speakers) and gym gear |
 | `tour.html`, `tour.js`, `tour.css` | The view-only listing tour |
 | `house191.js` | The 191 Webster St preset |

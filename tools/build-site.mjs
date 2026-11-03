@@ -12,10 +12,14 @@ const out = join(root, 'site');
 rmSync(out, { recursive: true, force: true });
 mkdirSync(join(out, 'listings'), { recursive: true });
 
-const MODULES = ['viewer3d.js', 'walker.js', 'character.js', 'lighting.js', 'models3d.js', 'models_kl.js', 'models_dream.js',
+const MODULES = ['viewer3d.js', 'walker.js', 'character.js', 'lighting.js', 'models3d.js', 'models_kl.js', 'models_dream.js', 'models_nature.js',
   'textures.js', 'furniture.js', 'tour.js', 'tour.css',
   'app.js', 'editor2d.js', 'sounds.js', 'house191.js', 'houseDream.js', 'style.css'];
 for (const f of MODULES) copyFileSync(join(root, f), join(out, f));
+for (const dir of ['assets/hdri', 'assets/tex']) {
+  mkdirSync(join(out, dir), { recursive: true });
+  for (const f of readdirSync(join(root, dir))) if (/\.(js|json|jpe?g|png|webp|md)$/i.test(f)) copyFileSync(join(root, dir, f), join(out, dir, f));
+}
 for (const f of readdirSync(join(root, 'listings'))) if (/\.(json|jpe?g|png|webp)$/i.test(f)) copyFileSync(join(root, 'listings', f), join(out, 'listings', f));
 
 const wrap = src => {

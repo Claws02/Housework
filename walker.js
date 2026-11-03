@@ -220,6 +220,23 @@ export class Walker {
     this.yaw = this.facing = yaw;
   }
 
+  /** Jump to a spot (plan x, z) on floor fi: the nearest free floor space around it, facing the room's middle. */
+  goTo(fi, x, z) {
+    const f = this.v.state.floors[fi]; if (!f) return false;
+    for (let i = 0; i < 500; i++) {
+      const a = i * 0.7, rr = i * 0.1, px = x + Math.cos(a) * rr, pz = z + Math.sin(a) * rr;
+      const y = this.surfaceAt(px, pz, f.elev + 2);
+      if (y > f.elev - 1.5 && !this._blocked(px, pz, y)) {
+        this.pos.set(px, y, pz); this.vy = 0;
+        if (rr > 0.5) this.yaw = this.facing = Math.atan2(x - px, z - pz);
+        this.pitch = this.thirdPerson ? -0.3 : 0;
+        this._updateVisibility(true);
+        return true;
+      }
+    }
+    return false;
+  }
+
   // ── Input ───────────────────────────────────────────────────────────────
   _bindInput() {
     const ui = this.ui;
@@ -314,7 +331,7 @@ export class Walker {
 
   _syncUI() {
     const b = this.ui.querySelector('#walk-cam');
-    b.textContent = this.thirdPerson ? '👁 First person' : '🧍 Third person';
+    b.textContent = this.thirdPerson ? 'First person' : 'Third person';
     this.ui.querySelector('#walk-shirt').style.setProperty('--shirt', SHIRT_COLORS[this.shirtIdx]);
     this.char.group.visible = this.thirdPerson;
   }
@@ -394,7 +411,7 @@ export class Walker {
       if (force) this.v.buildScene();
       this.occluders = this.v._pickables.filter(o => ['wall', 'roof', 'room'].includes(o.userData.pick?.kind) && o.isMesh);
     }
-    const label = `📍 ${st.floors[fi]?.name ?? ''} · ${this.roomName}`;
+    const label = `${st.floors[fi]?.name ?? ''} · ${this.roomName}`;
     if (label !== this._label) { this._label = label; this.ui.querySelector('#walk-where').textContent = label; }
   }
 

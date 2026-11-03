@@ -1,7 +1,7 @@
 import { Editor2D }         from './editor2d.js';
 import { Viewer3D, LENSES }  from './viewer3d.js';
 import { FURNITURE_CATALOG, CATALOG_BY_TYPE, isBuiltIn } from './furniture.js';
-import { WALL_FINISHES, FLOOR_FINISHES, ROOF_FINISHES } from './textures.js';
+import { WALL_FINISHES, FLOOR_FINISHES, ROOF_FINISHES, photoTexturesReady } from './textures.js';
 import { buildHouse191 }     from './house191.js';
 import { buildDreamHouse }   from './houseDream.js';
 import { TIMES, QUALITY }   from './lighting.js';
@@ -438,7 +438,8 @@ function _rotateSelected(deg) {
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await Promise.race([photoTexturesReady, new Promise(r => setTimeout(r, 1500))]);   // photo textures, if installed
   _loadStorage();
   _buildPalette();
   _buildFloorTabs();
@@ -535,10 +536,14 @@ function _bind3DBar() {
     _qs(`#v3-${k}`)?.classList.toggle('active', state.view3d[k]);
   }
   _on('v3-walk', 'click', () => _setWalk(true));
-  _on('v3-decor', 'click', () => {
-    viewer?.setDecor(!(state.view3d.decor !== false));
-    _qs('#v3-decor').classList.toggle('active', state.view3d.decor !== false);
-  });
+  const syncDecor = () => {
+    const on = state.view3d.decor !== false;
+    _qs('#v3-decor').classList.toggle('active', on);
+    _qs('#walk-decor').textContent = on ? '🛋 Furnished' : '🛋 Empty';
+  };
+  const toggleDecor = () => { viewer?.setDecor(!(state.view3d.decor !== false)); syncDecor(); };
+  _on('v3-decor', 'click', toggleDecor);
+  _on('walk-decor', 'click', toggleDecor);
   const lensKeys = Object.keys(LENSES);
   const syncLens = () => { _qs('#walk-lens').textContent = '🔭 ' + LENSES[state.view3d.lens || 'wide'].label; };
   _on('walk-lens', 'click', () => {

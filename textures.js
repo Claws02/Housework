@@ -117,10 +117,16 @@ const DRAW = {
   },
 
   grass(ctx, S, c, r) {
-    ctx.fillStyle = c; ctx.fillRect(0, 0, S, S);
-    for (let k = 0; k < 9000; k++) {
-      ctx.fillStyle = shade(c, 0.7 + r() * 0.6);
-      ctx.fillRect(r() * S, r() * S, 1.5, 3 + r() * 4);
+    ctx.fillStyle = shade(c, 0.85); ctx.fillRect(0, 0, S, S);
+    // blades: thin slanted strokes, lighter tips over darker roots, in small clumps
+    for (let k = 0; k < 14000; k++) {
+      const x = r() * S, y = r() * S, len = 4 + r() * 7, lean = (r() - 0.5) * 3;
+      ctx.strokeStyle = shade(c, 0.62 + r() * 0.7); ctx.lineWidth = 1 + r() * 0.8;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + lean, y - len); ctx.stroke();
+    }
+    for (let k = 0; k < 60; k++) {           // a few clover / weed patches
+      ctx.fillStyle = r() < 0.5 ? 'rgba(40,70,20,0.10)' : 'rgba(170,170,90,0.07)';
+      ctx.beginPath(); ctx.arc(r() * S, r() * S, 6 + r() * 16, 0, 6.28); ctx.fill();
     }
     // faint mowing stripes
     for (let x = 0; x < S; x += S / 4) { ctx.fillStyle = 'rgba(255,255,255,0.035)'; ctx.fillRect(x, 0, S / 8, S); }
@@ -511,10 +517,71 @@ export function normalMap(name, color = '#cccccc', tile = 4, size = 512, tileV =
 
 const _matCache = new Map();
 
+/** Lawn: the grass texture plus large, soft light/dark and green/straw patches in world space, so a big
+ *  yard doesn't show the same tile repeating. */
+export function lawnMaterial(finish, color, tile = 10) {
+  const m = finishMaterial({ ...finish, tile }, color).clone();
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const ctx = c.getContext('2d'), rr = rnd(911);
+  ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 70; i++) {
+    const x = rr() * 128, y = rr() * 128, rad = 10 + rr() * 30, v = Math.round(rr() * 255);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
+    g.addColorStop(0, `rgba(${v},${255 - v},${v},0.35)`); g.addColorStop(1, `rgba(${v},${255 - v},${v},0)`);
+    for (const [dx, dy] of [[0, 0], [128, 0], [-128, 0], [0, 128], [0, -128]]) { ctx.save(); ctx.translate(dx, dy); ctx.fillStyle = g; ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2); ctx.restore(); }
+  }
+  const macro = new THREE.CanvasTexture(c); macro.wrapS = macro.wrapT = THREE.RepeatWrapping;
+  m.onBeforeCompile = sh => {
+    sh.uniforms.macroMap = { value: macro };
+    sh.fragmentShader = 'uniform sampler2D macroMap;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      vec3 mc = texture2D(macroMap, vMapUv * ${(tile / 120).toFixed(4)}).rgb;
+      diffuseColor.rgb *= mix(0.8, 1.14, mc.r);
+      diffuseColor.rgb *= mix(vec3(1.06, 1.0, 0.78), vec3(0.92, 1.04, 0.98), mc.g);`);
+  };
+  m.customProgramCacheKey = () => 'lawn' + tile;
+  return m;
+}
+
+// ── Photo textures (optional) ───────────────────────────────────────────────
+// When assets/tex/manifest.json lists a texture, it replaces the procedural one of the same name:
+//   { "oak": { "map": "oak_diff.jpg", "normal": "oak_nor.jpg", "rough": "oak_rough.jpg", "ft": 4, "avg": "#a07850" } }
+// ft = feet covered by one image (real-world scale); avg = the image's average colour, so a finish colour
+// (a darker stain, a grey tile) can tint it. tools/fetch_textures.py downloads CC0 Poly Haven sets and writes it.
+let PHOTO = {};
+const TEX_DIR = new URL('./assets/tex/', import.meta.url);
+export const photoTexturesReady = fetch(new URL('manifest.json', TEX_DIR), { cache: 'no-cache' })
+  .then(r => (r.ok ? r.json() : {})).then(j => { PHOTO = j && typeof j === 'object' ? j : {}; }).catch(() => {});
+const _photo = new Map();
+function photoTex(file, ft, srgb) {
+  const key = `${file}|${ft}`;
+  if (!_photo.has(key)) {
+    const t = new THREE.TextureLoader().load(new URL(file, TEX_DIR).href);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(1 / ft, 1 / ft);
+    t.anisotropy = 8;
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+    _photo.set(key, t);
+  }
+  return _photo.get(key);
+}
+/** Photo-textured material for texture `name`, tinted toward `color`; null when no photo set is installed. */
+function photoMaterial(name, color, params) {
+  const p = PHOTO[name];
+  if (!p?.map) return null;
+  const tint = new THREE.Color(color), avg = new THREE.Color(p.avg || color);
+  for (const k of ['r', 'g', 'b']) tint[k] = Math.min(2, tint[k] / Math.max(avg[k], 0.02));
+  const m = new THREE.MeshStandardMaterial({ ...params, color: tint, map: photoTex(p.map, p.ft || 4, true) });
+  if (p.normal) m.normalMap = photoTex(p.normal, p.ft || 4, false);
+  if (p.rough) { m.roughnessMap = photoTex(p.rough, p.ft || 4, false); m.roughness = Math.min(1, (params.roughness ?? 0.7) * 1.4); }
+  return m;
+}
+
 /** Material for a finish entry from one of the catalogs above. */
 export function finishMaterial(finish, color, opts = {}) {
   const key = `${finish.tex}|${color}|${finish.tile}|${finish.tileV ?? ''}|${opts.side ?? ''}|${opts.transparent ?? ''}`;
   if (_matCache.has(key)) return _matCache.get(key);
+  const photo = finish.tex !== 'paint' && photoMaterial(finish.tex, color, { metalness: finish.metal ?? 0, roughness: finish.rough ?? 0.8, side: opts.side ?? THREE.FrontSide });
+  if (photo) { _matCache.set(key, photo); return photo; }
   const m = new THREE.MeshStandardMaterial({
     map: texture(finish.tex, color, finish.tile, 512, finish.tileV ?? finish.tile),
     normalMap: normalMap(finish.tex, color, finish.tile, 512, finish.tileV ?? finish.tile),
@@ -533,6 +600,11 @@ const MODEL_TILE = { quartz: 4, brushed: 2, leafprint: 2.5, damask: 1.2, knit: 1
 export function mat(kind, color, extra = {}) {
   const key = `${kind}|${color}|${JSON.stringify(extra)}`;
   if (_matCache.has(key)) return _matCache.get(key);
+  if (kind !== 'plain' && PHOTO[kind]) {
+    const { tile, tileV, ...rest } = extra;
+    const m = photoMaterial(kind, color, { roughness: 0.7, metalness: 0, ...rest });
+    if (m) { _matCache.set(key, m); return m; }
+  }
   const p = { color: kind === 'plain' ? color : '#ffffff', roughness: 0.7, metalness: 0, ...extra };
   if (kind !== 'plain') {
     // model UVs are in feet on box-shaped parts; tile = feet per texture repeat
