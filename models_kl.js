@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { mat } from './textures.js';
-import { BUILDERS as B, M, lampMat, seeded, geo, r3, shaker, drawerFront, books, legs4 } from './models3d.js';
+import { BUILDERS as B, M, lampMat, seeded, geo, r3, shaker, drawerFront, books, legs4, stick, lerp3 } from './models3d.js';
 
 const PI = Math.PI;
 const shadeHex = (hex, f) => '#' + new THREE.Color(hex).multiplyScalar(f).getHexString();
@@ -510,13 +510,15 @@ B.fridge = (k, w, d, h) => {
   k.box(w, 0.06, d - 0.25, dark, 0, h - 0.06, -0.12);
 };
 
-B.dishwasher = (k, w, d, h) => {
-  const st = S.steel(), fz = d / 2 - 0.12;
-  k.box(w, 0.33, d - 0.4, M.black(), 0, 0, -0.25);
-  k.box(w - 0.02, h - 0.33 - 0.12, 0.08, st, 0, 0.33, fz);
-  k.box(w - 0.02, 0.2, 0.08, mat('plain', '#2a2b2e', { roughness: 0.35, metalness: 0.5 }), 0, h - 0.32, fz);
-  k.rod(-w / 2 + 0.2, fz + 0.16, w / 2 - 0.2, fz + 0.16, h - 0.45, 0.028, M.chrome());
-  for (const sx of [-1, 1]) k.box(0.04, 0.04, 0.1, M.chrome(), sx * (w / 2 - 0.25), h - 0.47, fz + 0.09);
+B.dishwasher = (k, w, d, h, c, c2) => {   // built in under the counter: tub, stainless door, control strip, and the counter run across the top
+  const st = S.steel(), fz = d / 2 - 0.12, top = 3.0 - 0.105;                              // counters are 36" with a 1¼" top
+  k.box(w - 0.04, top - 0.02, d - 0.35, M.plain('#55585c', 0.5, { metalness: 0.4 }), 0, 0, -0.17);   // tub / sides
+  k.box(w - 0.02, 0.3, 0.06, M.black(), 0, 0, fz - 0.12);                                   // toe kick
+  k.box(w - 0.02, top - 0.33 - 0.22, 0.08, st, 0, 0.33, fz);                                // door
+  k.box(w - 0.02, 0.2, 0.08, mat('plain', '#2a2b2e', { roughness: 0.35, metalness: 0.5 }), 0, top - 0.22, fz);
+  k.rod(-w / 2 + 0.2, fz + 0.16, w / 2 - 0.2, fz + 0.16, top - 0.35, 0.028, M.chrome());
+  for (const sx of [-1, 1]) k.box(0.04, 0.04, 0.1, M.chrome(), sx * (w / 2 - 0.25), top - 0.37, fz + 0.09);
+  counterTop(k, w, d, 0.105, S.quartz(c2 && c2 !== '#888888' ? c2 : undefined), top);
 };
 
 B.island = (k, w, d, h, c, c2, it) => {
@@ -557,30 +559,39 @@ B.builtinDesk = (k, w, d, h, c, c2, it) => {
 };
 
 B.barStool = (k, w, d, h, c, c2, it) => {
-  const seatH = it.style === 'upholstered' ? h - 0.05 : h - 0.95;
   if (it.style === 'upholstered') {                                                        // backless upholstered stool
-    const legs = M.wood('#3b2a1e', 0.5), fab = mat('fabric', c, { roughness: 0.95 });
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const l = k.cyl(0.05, 0.04, seatH - 0.3, legs, sx * (w / 2 - 0.15), 0, sz * (d / 2 - 0.15), 10); l.rotation.set(sz * 0.05, 0, -sx * 0.05); }
-    for (const [ax, az] of [[1, 0], [0, 1]]) for (const s of [-1, 1]) k.box(ax ? w - 0.3 : 0.05, 0.05, ax ? 0.05 : d - 0.3, legs, az ? s * (w / 2 - 0.15) : 0, seatH * 0.3, ax ? s * (d / 2 - 0.15) : 0);
-    plush(k, w, 0.36, d, fab, 0, seatH - 0.36, 0, { e: 0.35, puff: 0.25 });
+    const seatH = h - 0.05, legs = M.wood('#3b2a1e', 0.5), fab = mat('fabric', c, { roughness: 0.95 });
+    const sy = seatH - 0.36, L = [];
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const top = [sx * (w / 2 - 0.2), sy + 0.02, sz * (d / 2 - 0.2)], foot = [sx * (w / 2 - 0.1), 0, sz * (d / 2 - 0.1)];
+      stick(k, foot, top, 0.05, legs, 0.04); L.push({ sx, sz, top, foot });
+    }
+    const at = (sx, sz, y) => { const l = L.find(q => q.sx === sx && q.sz === sz); return lerp3(l.foot, l.top, y / (sy + 0.02)); };
+    for (const sz of [-1, 1]) stick(k, at(-1, sz, sy * 0.3), at(1, sz, sy * 0.3), 0.025, legs);
+    for (const sx of [-1, 1]) stick(k, at(sx, -1, sy * 0.3), at(sx, 1, sy * 0.3), 0.025, legs);
+    plush(k, w, 0.36, d, fab, 0, sy, 0, { e: 0.35, puff: 0.25 });
     return;
   }
-  // White spindle-back counter stool with a natural wood saddle seat (photo)
-  const m = M.plain(c, 0.4), seat = M.wood('#c9a27a', 0.45);
+  // White spindle-back counter stool with a natural wood saddle seat (photo). Every rung meets its legs.
+  const seatH = h - 0.95, m = M.plain(c, 0.4), seat = M.wood('#c9a27a', 0.45);
+  const sy = seatH - 0.08, L = [];
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    const l = k.cyl(0.035, 0.05, seatH, m, sx * (w / 2 - 0.14), 0, sz * (d / 2 - 0.14), 10);
-    l.rotation.set(sz * 0.07, 0, -sx * 0.07);
+    const top = [sx * (w / 2 - 0.2), sy, sz * (d / 2 - 0.2)], foot = [sx * (w / 2 - 0.08), 0, sz * (d / 2 - 0.08)];
+    stick(k, foot, top, 0.05, m, 0.038); L.push({ sx, sz, top, foot });
   }
-  for (const [yy, ins] of [[seatH * 0.3, 0.1], [seatH * 0.62, 0.13]]) {
-    k.rod(-w / 2 + ins, d / 2 - ins, w / 2 - ins, d / 2 - ins, yy, 0.025, m);
-    k.rod(-w / 2 + ins, -d / 2 + ins, w / 2 - ins, -d / 2 + ins, yy, 0.025, m);
-    k.rod(-w / 2 + ins, -d / 2 + ins, -w / 2 + ins, d / 2 - ins, yy + 0.1, 0.022, m);
-    k.rod(w / 2 - ins, -d / 2 + ins, w / 2 - ins, d / 2 - ins, yy + 0.1, 0.022, m);
+  const at = (sx, sz, y) => { const l = L.find(q => q.sx === sx && q.sz === sz); return lerp3(l.foot, l.top, y / sy); };
+  for (const y of [sy * 0.3, sy * 0.62]) {
+    stick(k, at(-1, 1, y), at(1, 1, y), 0.025, m); stick(k, at(-1, -1, y), at(1, -1, y), 0.025, m);           // front / back rungs
+    stick(k, at(-1, -1, y + 0.1), at(-1, 1, y + 0.1), 0.022, m); stick(k, at(1, -1, y + 0.1), at(1, 1, y + 0.1), 0.022, m);   // side rungs
   }
-  plush(k, w - 0.05, 0.14, d - 0.08, seat, 0, seatH - 0.06, 0.02, { e: 0.5, puff: 0.15 });
-  for (const sx of [-1, 1]) { const p = k.cyl(0.035, 0.035, 0.95, m, sx * (w / 2 - 0.2), seatH + 0.04, -d / 2 + 0.16, 8); p.rotation.x = -0.12; }
-  for (let i = -1; i <= 1; i++) { const sp = k.cyl(0.02, 0.02, 0.62, m, i * 0.2, seatH + 0.06, -d / 2 + 0.15, 6); sp.rotation.x = -0.12; }
-  const rail = k.box(w - 0.3, 0.2, 0.08, m, 0, seatH + 0.82, -d / 2 + 0.07); rail.rotation.x = -0.12;
+  plush(k, w - 0.05, 0.14, d - 0.08, seat, 0, sy, 0.02, { e: 0.5, puff: 0.15 });
+  // back: posts rise from the back of the seat, a curved-look top rail, three spindles into the seat
+  const bz = -d / 2 + 0.18, topY = seatH + 0.92, lean = 0.12;
+  for (const sx of [-1, 1]) stick(k, [sx * (w / 2 - 0.2), sy + 0.06, bz], [sx * (w / 2 - 0.2), topY, bz - lean], 0.036, m, 0.03);
+  const railY = topY - 0.1, railZ = bz - lean * (railY - sy) / (topY - sy);
+  const rail = k.rbox(w - 0.3, 0.2, 0.07, 0.03, m, 0, railY - 0.1, railZ);
+  rail.rotation.x = -Math.atan2(lean, topY - sy);
+  for (let i = -1; i <= 1; i++) stick(k, [i * 0.2, seatH + 0.04, bz + 0.01], [i * 0.2, railY - 0.08, railZ + 0.01], 0.02, m);
 };
 
 B.pendantDome = (k, w, d, h, c, c2, it, ctx) => {

@@ -182,6 +182,16 @@ function books(k, x0, x1, y, z, depth, rnd, maxH = 0.85) {
   }
 }
 
+/** Round rod from point a to point b ([x,y,z] each), radius r (tapering to r1 at b). Joints meet exactly. */
+function stick(k, a, b, r, m, r1 = r, seg = 8) {
+  const A = new THREE.Vector3(...a), Bv = new THREE.Vector3(...b), len = A.distanceTo(Bv);
+  const c = k.cyl(r1, r, len, m, 0, 0, 0, seg);
+  c.position.copy(A).add(Bv).multiplyScalar(0.5);
+  c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), Bv.sub(A).normalize());
+  return c;
+}
+const lerp3 = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+
 function cushion(k, w, h, d, m, x, y, z) { return k.rbox(w, h, d, Math.min(0.18, h / 2.2), m, x, y, z); }
 
 function pot(k, rad, h, m, x = 0, z = 0) {
@@ -430,21 +440,30 @@ B.diningTable = (k, w, d, h, c) => {     // farmhouse table: thick eased top, ap
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) k._put(new THREE.Mesh(leg, m), sx * (w / 2 - ins), 0, sz * (d / 2 - ins));
 };
 
-B.diningChair = (k, w, d, h, c, c2) => {  // spindle-back dining chair: saddle seat, splayed legs, curved crest rail
-  const m = M.wood(c), seatH = 1.5, sw = w - 0.08, sd = d - 0.1;
-  k.rbox(sw, 0.13, sd, 0.05, m, 0, seatH - 0.13, 0.02);
+B.diningChair = (k, w, d, h, c, c2) => {  // spindle-back dining chair: saddle seat, splayed legs, stretchers and back that all meet
+  const m = M.wood(c), seatH = 1.5, sw = w - 0.08, sd = d - 0.1, st = 0.13;
+  const sy = seatH - st;                                                          // underside of the seat
+  k.rbox(sw, st, sd, 0.05, m, 0, sy, 0.02);
   if (c2) cushion(k, sw - 0.2, 0.09, sd - 0.3, M.fabric(c2), 0, seatH - 0.02, 0.06);
+  // legs: from under the seat corners out to slightly splayed feet
+  const legs = [];
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    const lg = k.cyl(0.045, 0.06, seatH - 0.1, m, sx * (sw / 2 - 0.12), 0, sz * (sd / 2 - 0.12), 8);
-    lg.rotation.set(sz * 0.06, 0, -sx * 0.06);
+    const top = [sx * (sw / 2 - 0.14), sy, sz * (sd / 2 - 0.12)], foot = [sx * (sw / 2 - 0.08), 0, sz * (sd / 2 - 0.06)];
+    stick(k, foot, top, 0.045, m, 0.06); legs.push({ sx, sz, top, foot });
   }
-  for (const sz of [-1, 1]) k.rod(-sw / 2 + 0.14, sz * (sd / 2 - 0.13), sw / 2 - 0.14, sz * (sd / 2 - 0.13), 0.5, 0.025, m);   // stretchers
-  const bz = -sd / 2 + 0.1, top = h - 0.1;
-  for (const sx of [-1, 1]) { const p = k.cyl(0.045, 0.05, top - seatH + 0.05, m, sx * (sw / 2 - 0.1), seatH - 0.05, bz, 8); p.rotation.x = -0.1; }
-  k.rbox(sw - 0.1, 0.2, 0.09, 0.04, m, 0, top - 0.16, bz - 0.06);                        // crest rail
+  const at = (sx, sz, y) => { const L = legs.find(l => l.sx === sx && l.sz === sz); return lerp3(L.foot, L.top, y / sy); };
+  for (const sz of [-1, 1]) stick(k, at(-1, sz, 0.45), at(1, sz, 0.45), 0.024, m);                  // front & back stretchers
+  for (const sx of [-1, 1]) stick(k, at(sx, -1, 0.62), at(sx, 1, 0.62), 0.024, m);                   // side stretchers
+  // back: two posts rising from the back of the seat to a crest rail, spindles between
+  const by = seatH, bz = -sd / 2 + 0.1, top = h - 0.06, lean = 0.14;
+  const postTop = sx => [sx * (sw / 2 - 0.12), top, bz - lean], postBot = sx => [sx * (sw / 2 - 0.12), sy, bz];
+  for (const sx of [-1, 1]) stick(k, postBot(sx), postTop(sx), 0.05, m, 0.042);
+  const railY = top - 0.12, railZ = bz - lean * (railY - sy) / (top - sy);
+  const rail = k.rbox(sw - 0.12, 0.2, 0.08, 0.035, m, 0, railY - 0.1, railZ);
+  rail.rotation.x = -Math.atan2(lean, top - sy);
   for (let i = 0; i < 5; i++) {
-    const x = -sw / 2 + 0.24 + i * (sw - 0.48) / 4;
-    const sp = k.cyl(0.018, 0.018, top - seatH - 0.08, m, x, seatH, bz - 0.01, 6); sp.rotation.x = -0.1;
+    const x = -sw / 2 + 0.26 + i * (sw - 0.52) / 4;
+    stick(k, [x, by - 0.02, bz], [x, railY - 0.08, railZ + 0.01], 0.018, m);
   }
 };
 
@@ -1178,9 +1197,16 @@ B.lampPost = (k, w, d, h) => {
   const s = new Kit(); B.lantern(s, 0.9, 0.9, 1.2, '', '', { lift: 0 }, { ceil: 1.2 }); s.g.position.y = h - 1.2; k.g.add(s.g);
 };
 
-B.mailbox = (k, w, d, h, c) => {
-  k.box(0.35, h - 0.6, 0.35, M.trim(), 0, 0, 0);
-  const box = k.cyl(0.35, 0.35, d, M.plain(c, 0.4), 0, h - 0.4, 0, 16); box.rotation.x = Math.PI / 2; box.position.y = h - 0.3;
+B.mailbox = (k, w, d, h, c) => {         // rural mailbox: 4×4 post with an arm, round-top box, red flag
+  const post = M.trim(), box = M.plain(c, 0.35, { metalness: 0.3 }), by = h - 0.75;
+  k.box(0.32, by, 0.32, post, 0, 0, -0.25);
+  k.box(0.3, 0.14, d * 0.85, post, 0, by - 0.14, 0);
+  const bw = 0.62, bh = 0.4;
+  k.box(bw, bh, d, box, 0, by, 0);
+  const roof = k.cyl(bw / 2, bw / 2, d, box, 0, 0, 0, 20); roof.rotation.x = Math.PI / 2; roof.position.set(0, by + bh, 0);
+  k.box(bw + 0.02, bh + 0.3, 0.03, box, 0, by, d / 2);                                     // door
+  k.box(0.03, 0.5, 0.06, M.plain('#c0392b', 0.5), bw / 2 + 0.03, by + 0.3, -0.1);             // flag post
+  k.box(0.03, 0.18, 0.28, M.plain('#c0392b', 0.5), bw / 2 + 0.03, by + 0.62, 0.03);           // flag
 };
 
 B.boulder = (k, w, d, h) => k.ico(0.5, M.plain('#8c8780', 0.95, { flatShading: true }), 0, h / 2, 0, w, h, d, 1);
@@ -1193,7 +1219,7 @@ B.fence = (k, w, d, h, c) => {
 
 export const BUILDERS = B;
 // Shared with models_kl.js (kitchen & living room set)
-export { Kit, M, lampMat, seeded, geo, r3, shaker, drawerFront, books, legs4, pot, foliage, cushion };
+export { Kit, M, lampMat, seeded, geo, r3, shaker, drawerFront, books, legs4, pot, foliage, cushion, stick, lerp3 };
 
 /**
  * Build a THREE.Group for a furniture item.

@@ -302,7 +302,7 @@ export function buildDreamHouse() {
   item('ceiling-beams', 50, -7, { rot: 90, w: 13.4, d: 15.4, label: 'Ceiling Beams (sunroom)' });
   item('rug-8x10', 50.5, -7.5, { rot: 90, color: '#a8b8b0' });
   item('sofa-2', 50.5, -11.6, { rot: 0, color: '#f0ebe0', color2: '#7a9aa6' });
-  item('armchair', 46.8, -6.4, { rot: -110, color: '#d8c8a8' }); item('armchair', 54.4, -6.4, { rot: 110, color: '#d8c8a8' });
+  item('armchair', 46.8, -7.4, { rot: -95, color: '#d8c8a8' }); item('armchair', 54.2, -7.4, { rot: 95, color: '#d8c8a8' });   // facing each other across the table
   item('coffee-table', 50.5, -7.6, { w: 3.6, d: 2, color: '#b98b5a' });
   item('plant-lg', 43.4, -12.6, {}); item('plant-lg', W - e - 1.1, -12.6, { color: '#4f8a3f' });
   item('ceiling-light', 50, -3.5, {});
@@ -368,8 +368,8 @@ export function buildDreamHouse() {
   item('steps', 20.5, 46.4, { rot: 0, w: 5, d: 2.4, height: 0.65, lift: GROUND, label: 'Porch Steps' });
   for (const x of [14.5, 22.5, 35.5, 43.5]) item('post', x, 44.8, { height: 9.8 });
   item('lantern', 20.5, 41.5, { lift: 6.4, ceil: 9.4 }); item('lantern', 35.5, 41.5, { lift: 6.4, ceil: 9.4 });
-  item('patio-chair', 39.5, 41.2, { rot: 200, label: 'Porch Rocker', color: '#f3f1ec', color2: '#5f7a8a' });
-  item('patio-chair', 42.2, 41.4, { rot: 160, label: 'Porch Rocker', color: '#f3f1ec', color2: '#5f7a8a' });
+  item('patio-chair', 39.5, 41.2, { rot: 15, label: 'Porch Rocker', color: '#f3f1ec', color2: '#5f7a8a' });
+  item('patio-chair', 42.2, 41.4, { rot: -15, label: 'Porch Rocker', color: '#f3f1ec', color2: '#5f7a8a' });
   item('pool', 30, -55, { rot: 90, color: '#9fd3e0' });
   for (const x of [17, 22, 27, 32]) item('lounge-chair', x, -42.2, { rot: 180, color2: '#f3f1ec' });
   item('patio-table', 40, -42.6, { w: 3, d: 3, umbrella: 'open', color2: '#2f5a8a' });
@@ -470,7 +470,7 @@ export function buildDreamHouse() {
   item('dresser-w', 53.2, 18 - p - 0.85, { rot: 180, w: 5.4 });
   item('tv', 53.2, 18 - p - 0.2, { rot: 180, w: 4.6, lift: 4.3 });
   item('ceiling-light', 49, 9, {});
-  item('lounge-chair', 46.5, -5, { rot: 30, color2: '#f3f1ec' }); item('lounge-chair', 50.5, -4.4, { rot: -15, color2: '#f3f1ec' });
+  item('lounge-chair', 46.5, -5, { rot: 165, color2: '#f3f1ec' }); item('lounge-chair', 50.5, -4.4, { rot: 195, color2: '#f3f1ec' });   // facing the yard
   item('side-table', 48.5, -7.7, {});
   item('planter', 56.8, -12.8, { color: '#5b7fc9' }); item('planter', 43.2, -12.8, { color: '#f3f1ec' });
   // Primary closet & vestibule

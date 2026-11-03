@@ -242,7 +242,7 @@ export function buildHouse191() {
   const dcy = (dyO + EXT / 2 + yB - EXT / 2) / 2;
   item('rug-8x10', 7.21, dcy, { color: '#b5aca0' });
   item('dining-6', 7.21, dcy, { rot: 90, w: 6, d: 3.6 });
-  for (const [dx, dy, r] of [[-1.15, -1.8, 90], [-1.15, 0, 90], [-1.15, 1.8, 90], [1.15, -1.8, -90], [1.15, 0, -90], [1.15, 1.8, -90]])
+  for (const [dx, dy, r] of [[-1.15, -1.8, -90], [-1.15, 0, -90], [-1.15, 1.8, -90], [1.15, -1.8, 90], [1.15, 0, 90], [1.15, 1.8, 90]])   // all face the table
     item('dining-chair', 7.21 + dx * 2, dcy + dy, { rot: r });
   item('hutch', 0.9, dcy, { rot: -90, w: 4.2 });
   item('cube-shelf', 0.7, -2.8, { rot: -90, w: 3.4, height: 2.4 });

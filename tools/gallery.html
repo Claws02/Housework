@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Model Gallery</title>
+<!-- QA page: every catalog model at its default size, in a labelled grid, with a red arrow on the floor pointing
+     where the model's FRONT should face (+z, plan "down" at rotation 0). Open from the repo root's server:
+     tools/gallery.html            all models
+     tools/gallery.html?only=bar-stool,armchair    just these (bigger)
+     tools/gallery.html?cat=Dining                 one catalog category -->
+<style>
+  html, body { margin: 0; height: 100%; background: #e9edf1; font: 13px system-ui, sans-serif; }
+  #c { position: fixed; inset: 0; }
+  .lbl { position: absolute; transform: translate(-50%, 0); background: rgba(255,255,255,.85); padding: 1px 5px; border-radius: 4px; white-space: nowrap; pointer-events: none; color: #17212f; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
+</script>
+</head>
+<body>
+<div id="c"></div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import '../viewer3d.js';                                   // registers every model set
+import { buildModel } from '../models3d.js';
+import { FURNITURE_CATALOG } from '../furniture.js';
+import { photoTexturesReady } from '../textures.js';
+
+await photoTexturesReady;
+const q = new URLSearchParams(location.search);
+const only = q.get('only')?.split(','), cat = q.get('cat');
+const list = FURNITURE_CATALOG.filter(c => (!only || only.includes(c.type)) && (!cat || c.category === cat) && !c.opening && c.width < 30);
+
+const el = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.AgXToneMapping; renderer.shadowMap.enabled = true;
+el.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#e9edf1');
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+const sun = new THREE.DirectionalLight(0xffffff, 2); sun.position.set(-30, 60, 40); sun.castShadow = true;
+sun.shadow.mapSize.set(4096, 4096); Object.assign(sun.shadow.camera, { left: -150, right: 150, top: 150, bottom: -150, far: 400 });
+scene.add(sun, new THREE.HemisphereLight(0xffffff, 0x8a8a8a, 0.8));
+
+const cols = Math.ceil(Math.sqrt(list.length * 1.6)), cell = only ? 12 : 10;
+const labels = [];
+list.forEach((c, i) => {
+  const it = { id: 'g' + i, type: c.type, width: c.width, depth: c.depth, rotation: 0, color: c.color, ...(c.defaults || {}) };
+  const g = buildModel(it, c, { ceil: 8, wallT: 0.45 });
+  const x = (i % cols) * cell, z = Math.floor(i / cols) * cell;
+  g.position.set(x, c.mount === 'ceiling' ? 8 - (c.height3d ?? 1) : (c.lift ?? 0), z);
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  scene.add(g);
+  // footprint outline + front arrow
+  const fp = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(c.width, c.depth)), new THREE.LineBasicMaterial({ color: '#4a6fa5' }));
+  fp.rotation.x = -Math.PI / 2; fp.position.set(x, 0.01, z); scene.add(fp);
+  const arrow = new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(x, 0.02, z + c.depth / 2), 1.2, 0xd03030, 0.4, 0.3);
+  scene.add(arrow);
+  const d = document.createElement('div'); d.className = 'lbl'; d.textContent = c.type; document.body.appendChild(d);
+  labels.push({ d, p: new THREE.Vector3(x, 0, z + Math.min(c.depth / 2 + 1.6, cell / 2 - 0.3)) });
+});
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: '#d7dce2' }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+const W = cols * cell, H = Math.ceil(list.length / cols) * cell;
+const cam = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.1, 2000);
+const ctr = new THREE.Vector3(W / 2 - cell / 2, 0, H / 2 - cell / 2);
+const dist = Math.max(W, H) * (only ? 1.2 : 1.05);
+cam.position.set(ctr.x - dist * 0.35, dist * 0.75, ctr.z + dist * 0.75);
+const controls = new OrbitControls(cam, renderer.domElement); controls.target.copy(ctr); controls.update();
+window.__gallery = { cam, controls, scene };
+function frame() {
+  requestAnimationFrame(frame); controls.update(); renderer.render(scene, cam);
+  for (const l of labels) {
+    const v = l.p.clone().project(cam);
+    l.d.style.display = v.z < 1 ? '' : 'none';
+    l.d.style.left = ((v.x + 1) / 2 * innerWidth) + 'px'; l.d.style.top = ((1 - v.y) / 2 * innerHeight) + 'px';
+  }
+}
+frame();
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); });
+</script>
+</body>
+</html>

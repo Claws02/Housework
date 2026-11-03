@@ -10,6 +10,7 @@
 //   5. tall furniture in front of windows
 //   6. doors & windows that don't sit on a wall, or that overlap each other
 //   7. items outside every room (lost in the yard / between rooms)
+//   8. seats facing away from their table / TV / fire, or straight into a wall
 import { readFileSync } from 'node:fs';
 import { CATALOG_BY_TYPE as CAT } from '../furniture.js';
 import { buildHouse191 } from '../house191.js';
@@ -93,6 +94,14 @@ function polys(it) {
 }
 const polyOverlap = (A, B) => Math.max(0, ...polys(A).flatMap(a => polys(B).map(b => overlap(a, b))));
 const isDecorOn = (a, b, f) => { const [a0] = vrange(f, a), [, b1] = vrange(f, b); return a0 >= b1 - 0.15; };   // a sits on top of b
+function segDist(px, py, [x1, y1], [x2, y2]) { const dx = x2 - x1, dy = y2 - y1, l2 = dx * dx + dy * dy, t = l2 ? Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / l2)) : 0; return Math.hypot(px - x1 - t * dx, py - y1 - t * dy); }
+function polyDist(A, B) {
+  if (overlap(A, B) > 0) return 0;
+  let d = Infinity;
+  for (const [P, Q] of [[A, B], [B, A]]) for (const [x, y] of P) for (let i = 0; i < Q.length; i++) d = Math.min(d, segDist(x, y, Q[i], Q[(i + 1) % Q.length]));
+  return d;
+}
+const itemsDist = (a, b) => Math.min(...polys(a).flatMap(pa => polys(b).map(pb => polyDist(pa, pb))));
 
 house.floors.forEach(f => {
   const name = f.name, items = f.furniture;
@@ -167,6 +176,43 @@ house.floors.forEach(f => {
     }
   }
 
+  // 8. seats facing the wrong way: away from the table / TV / fire they belong to, or straight into a wall
+  const SEATING = new Set(['diningChair', 'barStool', 'officeChair', 'patioChair', 'armchair', 'recliner', 'sofa', 'sectional', 'plushSofa']);
+  const FOCUS = new Set(['diningTable', 'island', 'builtinDesk', 'desk', 'antiqueDesk', 'lDesk', 'patioTable', 'fireTable', 'firePit',
+    'coffeeTable', 'ottoman', 'tv', 'fireplace', 'mediaFireplace', 'projScreen', 'tvStand', 'pool', 'hotTub']);
+  const focus = items.filter(it => FOCUS.has(CAT[it.type]?.model));
+  for (const it of items) {
+    if (!SEATING.has(CAT[it.type]?.model)) continue;
+    const fx = -Math.sin(it.rotation), fy = Math.cos(it.rotation);
+    const px = it.x + fx * it.depth / 2, py = it.y + fy * it.depth / 2;              // middle of the front edge
+    const here = roomAt(f, it.x, it.y), sameRoom = focus.filter(t => roomAt(f, t.x, t.y) === here);
+    let best = null, bd = 9;
+    for (const t of sameRoom) {
+      const d = itemsDist(it, t);
+      if (d < bd) { bd = d; best = t; }
+    }
+    // something it belongs to clearly in front (a TV or screen across the room counts) → fine
+    const ahead = sameRoom.some(t => { const dx = t.x - it.x, dy = t.y - it.y, l = Math.hypot(dx, dy) || 1; return l < 20 && (dx * fx + dy * fy) / l > 0.5 && itemsDist(it, t) < 18; });
+    if (best && !ahead) {
+      const dx = best.x - it.x, dy = best.y - it.y, l = Math.hypot(dx, dy) || 1;
+      if ((dx * fx + dy * fy) / l < -0.15) { report('facing', name, `${it.label} at ${it.x.toFixed(1)},${it.y.toFixed(1)} faces away from the ${best.label}`); continue; }
+    }
+    // nothing it belongs to right in front: is it staring into a wall?
+    const room = roomAt(f, it.x, it.y), reach = room?.outdoor || !room ? 6 : 2.0;
+    let hit = Infinity;
+    for (const w of allWalls) {
+      if ((w.base || 0) > 3) continue;
+      const P = wallPoly(w);
+      for (let i = 0; i < 4; i++) {                                                   // ray (px,py)+t·f against each wall edge
+        const [x1, y1] = P[i], [x2, y2] = P[(i + 1) % 4], ex = x2 - x1, ey = y2 - y1;
+        const den = fx * ey - fy * ex; if (Math.abs(den) < 1e-9) continue;
+        const t = ((x1 - px) * ey - (y1 - py) * ex) / den, u = ((x1 - px) * fy - (y1 - py) * fx) / den;
+        if (t >= 0 && u >= 0 && u <= 1) hit = Math.min(hit, t);
+      }
+    }
+    if (hit < reach && !(best && bd < hit)) report('facing', name, `${it.label} at ${it.x.toFixed(1)},${it.y.toFixed(1)} faces a wall ${ft(hit)} away`);
+  }
+
   // 7. items outside every room on indoor floors
   if (f.elev >= 0 || f.rooms.length) for (const it of items) {
     if (CAT[it.type]?.opening) continue;
@@ -182,14 +228,6 @@ const GUIDE = { walk: 3.0, seatToTable: [1.33, 1.75], workAisle: 3.5, bedSide: 2
 const advice = [];
 const advise = (floor, msg) => advice.push({ floor, msg });
 const inPoly = (P, x, y) => { let s0 = 0; for (let i = 0; i < P.length; i++) { const [x1, y1] = P[i], [x2, y2] = P[(i + 1) % P.length]; const c = (x2 - x1) * (y - y1) - (y2 - y1) * (x - x1); if (c !== 0) { if (s0 === 0) s0 = Math.sign(c); else if (Math.sign(c) !== s0) return false; } } return true; };
-function segDist(px, py, [x1, y1], [x2, y2]) { const dx = x2 - x1, dy = y2 - y1, l2 = dx * dx + dy * dy, t = l2 ? Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / l2)) : 0; return Math.hypot(px - x1 - t * dx, py - y1 - t * dy); }
-function polyDist(A, B) {
-  if (overlap(A, B) > 0) return 0;
-  let d = Infinity;
-  for (const [P, Q] of [[A, B], [B, A]]) for (const [x, y] of P) for (let i = 0; i < Q.length; i++) d = Math.min(d, segDist(x, y, Q[i], Q[(i + 1) % Q.length]));
-  return d;
-}
-const itemsDist = (a, b) => Math.min(...polys(a).flatMap(pa => polys(b).map(pb => polyDist(pa, pb))));
 const isFloorObstacle = (f, it) => {
   const c = CAT[it.type]; if (!c || c.opening || c.mount === 'ceiling' || c.layer === 0 || IGNORE.has(c.model) || FABRIC.has(c.model)) return false;
   if (c.layer === 2 && (it.lift ?? c.lift ?? 0) > 2) return false;     // wall-mounted / on a counter
@@ -302,7 +340,7 @@ house.floors.forEach((f, fi) => {
   }
 });
 
-const order = ['size', 'door', 'overlap', 'wall', 'window', 'opening', 'outside'];
+const order = ['size', 'facing', 'door', 'overlap', 'wall', 'window', 'opening', 'outside'];
 issues.sort((a, b) => order.indexOf(a.sev) - order.indexOf(b.sev));
 for (const i of issues) console.log(`[${i.sev}] ${i.floor}: ${i.msg}`);
 console.log(issues.length ? `\n${issues.length} issue(s)` : 'No issues found');
