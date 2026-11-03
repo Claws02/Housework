@@ -1,0 +1,231 @@
+// Furniture & fixture catalog.
+//  model:    builder key in models3d.js
+//  lift:     default height above the floor surface (ft) — windows' sill, wall cabinets, etc.
+//  mount:    'ceiling' → hangs from the ceiling (lift is computed from the floor height)
+//  opening:  true → cuts a hole in any wall it sits on (doors, windows, garage doors)
+//  floorHole:true → cuts its footprint out of the floor (stair openings)
+//  layer:    2D draw order (0 rugs … 3 trees)
+//  defaults: extra per-item props (pattern, glass, grid, open …)
+const C = (category, list) => list.map(([type, label, width, depth, height3d, color, model, icon, price, extra = {}]) =>
+  ({ type, label, width, depth, height3d, color, model, icon, price, category, ...extra }));
+
+export const FURNITURE_CATALOG = [
+  ...C('Bedroom', [
+    ['bed-twin',     'Twin Bed',          3.3, 6.6, 2,   '#3d5a8a', 'bed',        '🛏', 350,  { color2: '#f3f1ec' }],
+    ['bed-full',     'Full Bed',          4.8, 6.6, 2,   '#3d5a8a', 'bed',        '🛏', 500,  { color2: '#f3f1ec' }],
+    ['bed-queen',    'Queen Bed',         5.3, 7,   2.1, '#2f4f8f', 'bed',        '🛏', 750,  { color2: '#f3f1ec', patterns: true }],
+    ['bed-king',     'King Bed',          6.6, 7,   2.1, '#2f4f8f', 'bed',        '🛏', 1100, { color2: '#f3f1ec', patterns: true }],
+    ['bed-crib',     'Baby Crib',         2.5, 4.5, 3.4, '#f3f1ec', 'crib',       '🛏', 280,  { color2: '#f3f1ec' }],
+    ['bed-bunk',     'Bunk Bed',          3.4, 6.8, 5.5, '#3d5a8a', 'bunk',       '🛏', 620,  { color2: '#8B6A4A' }],
+    ['nightstand',   'Nightstand',        1.8, 1.4, 2.2, '#f3f1ec', 'nightstand', '🟫', 180],
+    ['nightstand-w', 'Nightstand (Wood)', 1.6, 1.3, 2.1, '#7a5233', 'nightstand', '🟫', 180],
+    ['dresser',      'Dresser',           5,   1.6, 3,   '#f3f1ec', 'dresser',    '🗄', 450],
+    ['chest',        'Tall Chest',        3,   1.6, 4.2, '#f3f1ec', 'dresser',    '🗄', 400],
+    ['dresser-w',    'Wood Dresser',      4,   1.6, 3,   '#7a5233', 'dresser',    '🗄', 380],
+    ['wardrobe',     'Wardrobe',          3.5, 2,   6.8, '#8B6A4A', 'wardrobe',   '🚪', 450],
+    ['closet-sys',   'Closet Shelving',   6,   2,   7,   '#f3f1ec', 'closet',     '👗', 600],
+    ['bench-foot',   'Foot Bench',        4,   1.5, 1.6, '#9a9a9a', 'bench',      '⬜', 200,  { color2: '#3a2a20' }],
+    ['mirror-floor', 'Floor Mirror',      2,   0.8, 5.5, '#4a3524', 'floorMirror','🪞', 160],
+  ]),
+  ...C('Living Room', [
+    ['sofa-2',       'Loveseat',          5.5, 3.1, 2.8, '#c9c3b8', 'sofa',       '🛋', 550,  { color2: '#7d8ea3' }],
+    ['sofa-3',       'Sofa',              7.5, 3.2, 2.8, '#c9c3b8', 'sofa',       '🛋', 800,  { color2: '#7d8ea3' }],
+    ['sofa-l',       'L-Sectional',       9.5, 7.5, 2.8, '#d8d4cb', 'sectional',  '🛋', 1800, { color2: '#6b6e72' }],   // w = back run, d = return; 38" deep
+    ['armchair',     'Armchair',          3,   3,   2.8, '#7d8ea3', 'armchair',   '🪑', 380],
+    ['recliner',     'Leather Recliner',  3.2, 3.3, 3.3, '#4b4038', 'recliner',   '🪑', 700],
+    ['coffee-table', 'Coffee Table',      4,   2,   1.5, '#7a5233', 'coffeeTable','⬜', 280],
+    ['ottoman',      'Ottoman',           3,   2.2, 1.4, '#d8d4cb', 'ottoman',    '⬜', 220],
+    ['tv-stand',     'TV Console',        5,   1.5, 2,   '#3a2a20', 'tvStand',    '📺', 220],
+    ['tv',           'Flat TV 55"',       4,   0.3, 2.3, '#111111', 'tv',         '📺', 600],
+    ['fireplace-tv', 'Electric Fireplace Console', 5, 1.5, 2.6, '#3a2a20', 'mediaFireplace', '🔥', 450],
+    ['bookshelf',    'Bookshelf',         3,   1,   6,   '#8B7355', 'bookshelf',  '📚', 180],
+    ['builtins',     'Built-in Shelves',  3.5, 1.4, 8,   '#f3f1ec', 'builtins',   '📚', 0],
+    ['fireplace',    'Stone Fireplace',   5.5, 1.6, 8,   '#9b8f80', 'fireplace',  '🔥', 0,    { color2: '#6b4a2f' }],
+    ['side-table',   'Side Table',        1.6, 1.6, 2,   '#7a5233', 'sideTable',  '⬜', 150],
+  ]),
+  ...C('Dining', [
+    ['dining-4',     'Dining Table (4)',  4.5, 3,   2.5, '#5a3a22', 'diningTable','🍽', 400],
+    ['dining-6',     'Dining Table (6)',  6,   3.4, 2.5, '#5a3a22', 'diningTable','🍽', 600],
+    ['dining-8',     'Dining Table (8)',  8,   3.6, 2.5, '#5a3a22', 'diningTable','🍽', 800],
+    ['dining-chair', 'Dining Chair',      1.6, 1.7, 3.3, '#4a2e1a', 'diningChair','🪑', 120,  { color2: '#cfc7b8' }],
+    ['bar-stool',    'Counter Stool',     1.4, 1.4, 3.05,'#f3f1ec', 'barStool',   '🪑', 90],   // 25" seat for a 36" counter
+    ['hutch',        'China Hutch',       4,   1.6, 6.8, '#4a2e1a', 'hutch',      '🏺', 900],
+    ['sideboard',    'Sideboard',         5,   1.5, 2.8, '#5a3a22', 'sideboard',  '🗄', 500],
+    ['cube-shelf',   'Cube Organizer',    4.5, 1.2, 2.4, '#f3f1ec', 'cubeShelf',  '🧺', 120],
+  ]),
+  ...C('Kitchen', [
+    ['counter',        'Base Cabinet + Counter', 3,   2.1, 3,   '#f3f1ec', 'baseCab',   '⬜', 600, { color2: '#ece9e3' }],
+    ['sink-cab',       'Sink Cabinet',           3,   2.1, 3,   '#f3f1ec', 'sinkCab',   '🚰', 900, { color2: '#ece9e3' }],
+    ['upper-cab',      'Upper Cabinet',          3,   1.1, 2.7, '#f3f1ec', 'upperCab',  '⬜', 400, { lift: 4.6 }],
+    ['upper-cab-glass','Upper Cabinet (Glass)',  3,   1.1, 2.7, '#f3f1ec', 'upperCab',  '⬜', 500, { lift: 4.6, defaults: { glass: true } }],
+    ['pantry',         'Pantry Cabinet',         2,   2.1, 7.5, '#f3f1ec', 'pantry',    '🥫', 900],
+    ['kitchen-island', 'Kitchen Island',         6,   3.6, 3,   '#24324a', 'island',    '⬛', 2400,{ color2: '#ece9e3' }],
+    ['fridge',         'French-door Fridge',     3,   2.6, 5.9, '#c3c7cc', 'fridge',    '🧊', 2200],
+    ['stove',          'Range',                  2.5, 2.2, 3,   '#c3c7cc', 'range',     '🍳', 1100],
+    ['range-hood',     'Range Hood',             2.5, 1.7, 3,   '#c3c7cc', 'hood',      '💨', 400, { lift: 5.5 }],
+    ['dishwasher',     'Dishwasher',             2,   2.1, 2.9, '#c3c7cc', 'dishwasher','🍽', 650],
+    ['microwave',      'Microwave',              2,   1.3, 1.1, '#c3c7cc', 'microwave', '📦', 180, { lift: 3 }],
+    ['builtin-desk',   'Built-in Desk',          9,   2,   2.6, '#f3f1ec', 'builtinDesk','🖥', 1500,{ color2: '#b98b5a' }],
+  ]),
+  ...C('Bathroom', [
+    ['bathtub',     'Tub / Shower',     5,   2.6, 1.7, '#f4f2ec', 'tub',     '🛁', 900],
+    ['toilet',      'Toilet',           1.6, 2.4, 2.6, '#fbfbf9', 'toilet',  '🚽', 280],
+    ['vanity',      'Vanity',           3,   1.8, 2.8, '#2b2b2e', 'vanity',  '🪥', 650,  { color2: '#9fa1a3' }],
+    ['vanity-w',    'White Vanity',     2.5, 1.7, 2.8, '#f3f1ec', 'vanity',  '🪥', 500,  { color2: '#f7f7f5' }],
+    ['shower',      'Glass Shower',     3,   3.5, 7,   '#f4f4f0', 'shower',  '🚿', 2400],
+    ['mirror',      'Wall Mirror',      3,   0.15, 3,  '#2b2b2e', 'mirror',  '🪞', 150,  { lift: 3.8, layer: 2 }],
+  ]),
+  ...C('Laundry & Utility', [
+    ['washer',      'Washer',           2.3, 2.5, 3.2, '#f3f3f1', 'washer',      '🌀', 800],
+    ['dryer',       'Dryer',            2.3, 2.5, 3.2, '#f3f3f1', 'washer',      '🌀', 700],
+    ['washer-stack','Stacked W/D',      2.3, 2.5, 6.4, '#f3f3f1', 'washer',      '🌀', 1500, { defaults: { stacked: true } }],
+    ['utility-sink','Utility Sink',     2,   2,   2.9, '#e8e6df', 'utilitySink', '🚰', 150],
+    ['boiler',      'Boiler',           2.2, 3,   3.4, '#2f7fc4', 'boiler',      '🔥', 0],
+    ['water-heater','Water Heater',     1.8, 1.8, 4.6, '#f2f1ec', 'waterHeater', '♨', 0],
+    ['elec-panel',  'Electrical Panel', 1.4, 0.4, 2.5, '#8c9096', 'elecPanel',   '⚡', 0,    { lift: 3.5, layer: 2 }],
+    ['joists',      'Exposed Joists',   10,  10,  0.8, '#c9a77c', 'joists',      '▤', 0,    { mount: 'ceiling', layer: 3 }],
+    ['metal-shelf', 'Metal Shelving',   4,   1.5, 6,   '#d5d7da', 'metalShelf',  '🗄', 120],
+    ['workbench',   'Workbench',        6,   2.5, 3,   '#b98b5a', 'workbench',   '🔨', 250],
+  ]),
+  ...C('Office', [
+    ['desk',          'Desk',            4,   2,   2.5, '#7a5233', 'desk',        '🖥', 320],
+    ['l-desk',        'L-Desk',          5,   4,   2.5, '#7a5233', 'lDesk',       '🖥', 480],
+    ['antique-desk',  'Antique Desk',    4.5, 2,   2.6, '#4a2412', 'antiqueDesk', '🖥', 650],
+    ['office-chair',  'Office Chair',    2.2, 2.2, 3.6, '#222222', 'officeChair', '💺', 250],
+    ['filing-cabinet','Filing Cabinet',  1.5, 2,   4,   '#888888', 'filing',      '🗄', 180],
+  ]),
+  ...C('Lighting', [
+    ['floor-lamp',    'Floor Lamp',      1.3, 1.3, 5.2, '#2b2b2e', 'floorLamp',   '💡', 120],
+    ['table-lamp',    'Table Lamp',      1.2, 1.2, 2,   '#5b8fa8', 'tableLamp',   '💡', 80,  { lift: 2.2, layer: 2 }],
+    ['pendant',       'Glass Pendant',   0.9, 0.9, 1,   '#e9eef0', 'pendant',     '💡', 180, { lift: 6.2, layer: 2 }],   // 30–36" above a counter
+    ['ceiling-light', 'Flush Ceiling Light', 1.4, 1.4, 0.4, '#f6f4ee', 'ceilingLight', '💡', 90, { mount: 'ceiling', layer: 2 }],
+    ['recessed-light','Recessed Can (6")', 0.55, 0.55, 0.05, '#f7f6f2', 'recessed', '💡', 40, { mount: 'ceiling', layer: 2 }],
+    ['pendant-dome',  'Dome Pendant',  1.25, 1.25, 1.0, '#cfd2d6', 'pendantDome', '💡', 220, { lift: 6, layer: 2 }],
+    ['lantern',       'Porch Lantern',   1,   1,   1.4, '#2b2b2e', 'lantern',     '🏮', 140, { lift: 5.8, layer: 2 }],
+  ]),
+  ...C('Decor', [
+    ['rug-5x8',     'Rug (5×8)',        5,   8,   0.05, '#8c6d5a', 'rug',      '🟫', 180, { layer: 0 }],
+    ['rug-8x10',    'Rug (8×10)',       8,   10,  0.05, '#a89f94', 'rug',      '🟫', 380, { layer: 0 }],
+    ['rug-runner',  'Runner Rug',       2.5, 8,   0.05, '#6f8296', 'rug',      '🟫', 90,  { layer: 0 }],
+    ['rug-round',   'Round Rug (6ft)',  6,   6,   0.05, '#7A8B6A', 'rug',      '⭕', 160, { layer: 0 }],
+    ['plant-lg',    'Large Plant',      2,   2,   5,    '#3d7a3a', 'plant',    '🌿', 80,  { color2: '#d9c9a8' }],
+    ['plant-sm',    'Small Plant',      1.2, 1.2, 1.8,  '#4f8a3f', 'plant',    '🌿', 40,  { color2: '#c56a3a' }],
+    ['wall-art',    'Framed Art',       2.5, 0.1, 2,    '#6f93b8', 'wallArt',  '🖼', 90,  { lift: 4.5, layer: 2 }],
+    ['curtains',    'Curtains',         4.5, 0.3, 7,    '#3f6aa6', 'curtains', '🪟', 80,  { lift: 0.3, layer: 2 }],
+    ['roman-shade', 'Roman Shade',      3.4, 0.2, 1.1,  '#efebe2', 'romanShade', '🪟', 90, { lift: 6, layer: 2 }],
+    ['pouf',        'Knit Pouf',        1.8, 1.8, 1.25, '#d8d2c6', 'pouf',     '⚪', 90],
+    ['tray-decor',  'Tray + Decor',     1.6, 1.0, 0.5,  '#7a5233', 'trayDecor','🗂', 40,  { layer: 2 }],
+    ['vase-flowers','Vase of Flowers',  0.7, 0.7, 1.6,  '#f4f2ec', 'vaseFlowers','💐', 35, { layer: 2 }],
+    ['basket',      'Wicker Basket',    1.4, 1.0, 0.9,  '#a8875c', 'basket',   '🧺', 30],
+    ['fruit-bowl',  'Fruit Bowl',       1.1, 1.1, 0.45, '#f4f2ec', 'fruitBowl','🍎', 30,  { lift: 3, layer: 2 }],
+    ['cutting-board','Cutting Board',   1.2, 0.3, 1.6,  '#b98b5a', 'cuttingBoard','🔪', 25, { lift: 3, layer: 2 }],
+    ['canisters',   'Canister Set',     1.6, 0.6, 0.85, '#f4f2ec', 'canisters','🫙', 40,  { lift: 3, layer: 2 }],
+    ['coffee-maker','Coffee Maker',     0.9, 0.95, 1.25,'#1c1c1e', 'coffeeMaker','☕', 90, { lift: 3, layer: 2 }],
+    ['knife-block', 'Knife Block',      0.55, 0.45, 0.85,'#7a5233','knifeBlock','🔪', 60,  { lift: 3, layer: 2 }],
+    ['paper-towel', 'Paper Towel Holder',0.5, 0.5, 1.0, '#fbfaf6', 'paperTowel','🧻', 15, { lift: 3, layer: 2 }],
+    ['piano',       'Upright Piano',    5,   2.2, 4,    '#1A1A1A', 'piano',    '🎹', 2500],
+    ['dog-bed',     'Pet Bed',          3,   2,   0.6,  '#8B7060', 'petBed',   '🐾', 60],
+  ]),
+  ...C('Architecture', [
+    ['door-single',  'Interior Door',      2.7, 0.5, 6.8, '#f7f6f2', 'door',      '🚪', 0, { opening: true, defaults: { open: 70 } }],
+    ['door-ext',     'Exterior Door (Lite)', 3, 0.5, 6.8, '#f7f6f2', 'door',      '🚪', 0, { opening: true, defaults: { style: 'lite' } }],
+    ['door-double',  'Double / Closet Door', 4.5, 0.5, 6.8, '#f7f6f2', 'door',    '🚪', 0, { opening: true }],
+    ['french-door',  'French Doors',       5,   0.5, 6.8, '#f7f6f2', 'door',      '🚪', 0, { opening: true }],
+    ['sliding-door', 'Sliding Glass Door', 6,   0.5, 6.8, '#f7f6f2', 'slider',    '🚪', 0, { opening: true }],
+    ['window',       'Double-hung Window', 3,   0.5, 4.5, '#f7f6f2', 'window',    '🪟', 0, { opening: true, lift: 2.8 }],
+    ['window-sm',    'Small Window',       2.2, 0.5, 3,   '#f7f6f2', 'window',    '🪟', 0, { opening: true, lift: 4 }],
+    ['window-picture','Picture Window',    5,   0.5, 4.5, '#f7f6f2', 'window',    '🪟', 0, { opening: true, lift: 2.5, defaults: { grid: false } }],
+    ['window-bsmt',  'Basement Window',    2.6, 0.5, 1.3, '#f7f6f2', 'window',    '🪟', 0, { opening: true, lift: 6.2, defaults: { grid: false } }],
+    ['arch',         'Cased Opening',      4,   0.5, 7,   '#f7f6f2', 'opening',   '🏛', 0, { opening: true }],
+    ['garage-door',  'Garage Door',        9,   0.5, 7.5, '#f3f1ec', 'garageDoor','🚘', 0, { opening: true }],
+    ['stairs',       'Stairs (up)',        3,   10,  9,   '#c9a77c', 'stairs',    '🪜', 0, { color2: '#6b4a2f' }],
+    ['stairs-down',  'Stairs (down)',      3,   10,  8,   '#b98b5a', 'stairsDown','🪜', 0, { floorHole: true, color2: '#6b4a2f' }],
+    ['stair-opening','Stair Opening + Rail', 3, 7,   3,   '#f7f6f2', 'stairOpening','🪜', 0, { floorHole: true, color2: '#6b4a2f' }],
+    ['railing',      'Railing',            6,   0.4, 3,   '#f7f6f2', 'railing',   '┅', 0],
+    ['steps',        'Exterior Steps',     4,   2.5, 1.2, '#9c8f7e', 'steps',     '▤', 0],
+    ['post',         'Porch Post',         0.6, 0.6, 8,   '#f7f6f2', 'post',      '▮', 0],
+    ['half-wall',    'Half Wall',          4,   0.4, 3.5, '#efece4', 'halfWall',  '▭', 0],
+    ['chimney',      'Brick Chimney',      3,   2.5, 26,  '#8e3b2c', 'chimney',   '🧱', 0, { layer: 3 }],
+    ['bulkhead',     'Basement Bulkhead',  4,   5.5, 2.2, '#6e3b2a', 'bulkhead',  '⬛', 0],
+  ]),
+  ...C('Garage', [
+    ['car',          'Car (Sedan)',      6.2, 15.5, 4.7, '#7b8a99', 'car',     '🚗', 0],
+    ['lawn-tractor', 'Lawn Tractor',     3.6, 6,    3.2, '#367c2b', 'mower',   '🚜', 2000],
+    ['trash-bin',    'Trash Bin',        2,   2.3,  3.5, '#3f6b3f', 'trashBin','🗑', 60],
+  ]),
+  ...C('Outdoor', [
+    ['tree',         'Maple Tree',       18, 18, 32, '#4f7d39', 'tree',      '🌳', 0,   { layer: 3 }],
+    ['tree-birch',   'Birch Tree',       12, 12, 28, '#6b9a45', 'tree',      '🌳', 0,   { layer: 3 }],
+    ['tree-pine',    'Pine Tree',        12, 12, 34, '#2f5a32', 'pine',      '🌲', 0,   { layer: 3 }],
+    ['shrub',        'Shrub',            3.5, 3.5, 3, '#456f35', 'shrub',     '🌳', 40],
+    ['hydrangea',    'Flowering Shrub',  3,   3,   3, '#4c7a3a', 'shrub',     '🌸', 50,  { color2: '#b23a5a' }],
+    ['hosta',        'Hosta',            2.2, 2.2, 1.3, '#5e8f3c', 'hosta',   '🌱', 20,  { color2: '#cfe0a0' }],
+    ['shed',         'Garden Shed',      8,   10,  9,   '#8b867c', 'shed',      '🏚', 3500,{ color2: '#f7f6f2' }],
+    ['fire-pit',     'Fire Pit',         5,   5,   1,  '#8f8a82', 'firePit',   '🔥', 300],
+    ['grill',        'Grill (covered)',  4.5, 2.2, 3.8, '#7c7894', 'grill',    '🍖', 600],
+    ['patio-table',  'Patio Table + Umbrella', 4, 3, 2.4, '#5e6064', 'patioTable', '⛱', 400, { color2: '#b52f3a', defaults: { umbrella: 'closed' } }],
+    ['patio-chair',  'Patio Chair',      2,   2.2, 3,  '#2b2b2e', 'patioChair','🪑', 120, { color2: '#9aa0a8' }],
+    ['lounge-chair', 'Deep Lounge Chair',2.6, 2.8, 3,  '#2b2b2e', 'patioChair','🪑', 250, { color2: '#e3a8a8' }],
+    ['fire-table',   'Gas Fire Table',   3,   3,   2,  '#6b6e72', 'fireTable', '🔥', 450],
+    ['kayak',        'Kayak',            2.4, 10,  1.2, '#e8742f','kayak',     '🛶', 500],
+    ['planter',      'Flower Pot',       1.5, 1.5, 1.8, '#d9502f','planter',   '🌼', 40],
+    ['planter-box',  'Planter Box',      3,   1.2, 1.6, '#e0a030','planter',   '🌼', 60,  { color2: '#d2691e' }],
+    ['lamp-post',    'Lamp Post',        1,   1,   7,   '#2b2b2e','lampPost',  '🏮', 300],
+    ['mailbox',      'Mailbox',          0.8, 1.8, 4,   '#1f1f22','mailbox',   '📫', 60],
+    ['boulder',      'Boulder',          2.5, 2,   1.3, '#8c8780','boulder',   '🪨', 0],
+    ['fence',        'Split-rail Fence', 24,  0.4, 3.5, '#8a7a66','fence',     '┅', 0],
+    ['privacy-fence','Privacy Fence (6 ft)', 24, 0.5, 6, '#b9a688','privacyFence','┃', 0],
+    ['pool',         'In-ground Pool',   18,  34,  0.16,'#9fd3e0','pool',      '🏊', 0,   { floorHole: true, groundHole: true, layer: 0 }],
+    ['hot-tub',      'Hot Tub',          7.5, 7.5, 3,   '#6b5a4a','hotTub',    '♨', 9000,{ color2: '#4a4a4c' }],
+  ]),
+  ...C('Fitness', [
+    ['treadmill',     'Treadmill',      3,   6.3, 4.6, '#3a3c40', 'treadmill',  '🏃', 1800],
+    ['exercise-bike', 'Spin Bike',      2,   4.4, 4.2, '#2b2b2e', 'bike',       '🚴', 1400],
+    ['yoga-mat',      'Yoga Mat',       2.5, 6,   0.05,'#5A8A5A', 'rug','🧘', 40, { layer: 0 }],
+    ['weight-bench',  'Weight Bench',   2,   4.5, 1.5, '#1c1c1e', 'weightBench','💪', 280],
+    ['weight-rack',   'Dumbbell Rack',  5,   2,   3,   '#2b2b2e', 'weightRack', '🏋', 900],
+  ]),
+  ...C('Media & Smart Home', [
+    ['speaker-tower', 'Tower Speaker',     1,   1.1, 3.6, '#3a2a20', 'speaker',     '🔊', 900],
+    ['speaker-ceiling','Ceiling Speaker',  0.8, 0.8, 0.04,'#f4f3ef', 'speaker',     '🔊', 250, { mount: 'ceiling', layer: 2 }],
+    ['subwoofer',     'Subwoofer',         1.3, 1.3, 1.4, '#1c1c1e', 'subwoofer',   '🔊', 700],
+    ['proj-screen',   'Projection Screen', 11,  0.3, 6.5, '#e9eaec', 'projScreen',  '🎬', 1200, { lift: 1.6, layer: 2 }],
+    ['projector',     'Ceiling Projector', 1.2, 1.4, 1.3, '#f0f0ee', 'projector',   '📽', 2500, { mount: 'ceiling', layer: 2 }],
+    ['smart-panel',   'Smart Home Panel',  0.7, 0.08,0.5, '#f4f4f2', 'smartPanel',  '📱', 400, { lift: 4.4, layer: 2 }],
+    ['ceiling-beams', 'Ceiling Beams',     12,  12,  0.75,'#8a5a35', 'beams',       '▤', 0,    { mount: 'ceiling', layer: 3 }],
+  ]),
+  ...C('Mudroom & Pantry', [
+    ['cubbies',       'Mudroom Lockers + Shoe Bins', 8, 1.7, 7.5, '#5f7a8a', 'cubbies', '🧥', 2800, { color2: '#b98b5a' }],
+    ['litter-box',    'Litter Box Cabinet',3,   1.8, 2.4, '#f3f1ec', 'litterBox',   '🐈', 350, { color2: '#b98b5a' }],
+    ['pantry-shelves','Pantry Shelving',   6,   1.4, 7.5, '#c9a77c', 'pantryShelves','🥫', 900],
+  ]),
+  ...C('Systems', [
+    ['heat-pump',     'Heat Pump (outdoor)', 3.2, 1.4, 3.4, '#e4e5e3', 'heatPump',  '❄', 0],
+    ['generator',     'Standby Generator',   4.2, 2.4, 2.6, '#d6d3cb', 'generator', '⚡', 0],
+    ['ev-charger',    'EV Charger (Level 2)',0.9, 0.45,1.3, '#f2f2f0', 'evCharger', '🔌', 700, { lift: 3.4, layer: 2 }],
+    ['battery',       'Home Battery',        2.5, 0.6, 3.8, '#f2f2f0', 'battery',   '🔋', 0, { lift: 0.5 }],
+    ['air-handler',   'Air Handler',         2,   2,   5.5, '#e4e5e3', 'airHandler','💨', 0],
+  ]),
+];
+
+export const CATALOG_BY_TYPE = Object.fromEntries(FURNITURE_CATALOG.map(c => [c.type, c]));
+
+// ── Built-in vs. staging ─────────────────────────────────────────────────────
+// "Furniture off" in the listing tour hides staging (furniture, decor, rugs, cars, patio sets) and keeps
+// what sells with the house: cabinets, counters, appliances, bath fixtures, fireplace, built-ins, closet
+// systems, light fixtures, doors/windows/stairs, mechanicals, landscaping, fences, pool.
+// An item can override its type with `builtIn: true | false`.
+const BUILT_IN_CATEGORIES = new Set(['Kitchen', 'Bathroom', 'Architecture', 'Systems']);
+const BUILT_IN_TYPES = new Set([
+  'closet-sys', 'builtins', 'fireplace',
+  'washer', 'dryer', 'washer-stack', 'utility-sink', 'boiler', 'water-heater', 'elec-panel', 'joists',
+  'ceiling-light', 'recessed-light', 'pendant', 'pendant-dome', 'lantern',
+  'speaker-ceiling', 'proj-screen', 'projector', 'smart-panel', 'ceiling-beams', 'cubbies', 'pantry-shelves',
+  'tree', 'tree-birch', 'tree-pine', 'shrub', 'hydrangea', 'hosta', 'shed', 'fire-pit', 'lamp-post', 'mailbox',
+  'boulder', 'fence', 'privacy-fence', 'pool', 'hot-tub',
+]);
+export function isBuiltIn(item) {
+  if (item.builtIn !== undefined) return !!item.builtIn;
+  const cat = CATALOG_BY_TYPE[item.type];
+  return !!cat && (BUILT_IN_CATEGORIES.has(cat.category) || BUILT_IN_TYPES.has(item.type));
+}

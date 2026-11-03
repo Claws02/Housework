@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>3D Home Tour</title>
+  <link rel="stylesheet" href="tour.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+<div id="tour">
+    <div id="view-3d"></div>
+
+    <!-- Listing card -->
+    <header id="t-head" class="card">
+      <button id="t-head-toggle" class="t-head-main" aria-expanded="true">
+        <span id="t-address" class="t-address">Loading…</span>
+        <span id="t-city" class="t-city"></span>
+      </button>
+      <div id="t-facts" class="t-facts"></div>
+    </header>
+
+    <!-- Agent (branded link only) -->
+    <aside id="t-agent" class="card" hidden>
+      <div id="t-agent-photo" class="t-agent-photo"></div>
+      <div class="t-agent-text">
+        <div id="t-agent-name" class="t-agent-name"></div>
+        <div id="t-agent-firm" class="t-agent-firm"></div>
+      </div>
+      <a id="t-agent-call" class="t-icon-btn" data-icon="phone" aria-label="Call"></a>
+      <a id="t-agent-mail" class="t-icon-btn" data-icon="mail" aria-label="Email"></a>
+    </aside>
+
+    <!-- Main controls -->
+    <nav id="t-bar" class="card">
+      <button id="t-walk" class="t-btn t-primary" data-icon="walk">Walk through</button>
+      <div id="t-floors" class="t-seg" role="group" aria-label="Floors"></div>
+      <button id="t-decor" class="t-btn active" data-icon="sofa" aria-pressed="true">Furnished</button>
+      <button id="t-time" class="t-btn t-icon" data-icon="sun" title="Time of day" aria-label="Time of day"></button>
+      <button id="t-full" class="t-btn t-icon" data-icon="expand" title="Full screen" aria-label="Full screen"></button>
+      <button id="t-more" class="t-btn t-icon" data-icon="gear" aria-label="Settings"></button>
+    </nav>
+
+    <!-- Settings sheet -->
+    <div id="t-sheet" class="card" hidden>
+      <label>Lens when walking
+        <select id="t-lens"></select>
+      </label>
+      <label>Your height
+        <select id="t-height"></select>
+      </label>
+      <label>Picture quality
+        <select id="t-quality"></select>
+      </label>
+      <button id="t-lights" class="t-btn" data-icon="bulb">House lights</button>
+      <button id="t-share" class="t-btn" data-icon="share">Share this tour</button>
+      <p class="t-sheet-note">"Furnished" off shows only what sells with the house: cabinets, appliances, built-ins and fixtures.</p>
+    </div>
+
+    <p id="t-hint" class="t-hint">Drag to look around · pinch to zoom · tap <b>Walk through</b> to go inside</p>
+
+    <footer id="t-foot">
+      <span id="t-disclaimer">3D rendering made from listing photos and the floor plan. Dimensions are approximate and furniture is virtual staging.</span>
+      <a id="t-credit" href="#" target="_blank" rel="noopener" hidden>Made by CLAWEngineering</a>
+    </footer>
+
+    <!-- Walk-through overlay (same controls as the designer) -->
+    <div id="walk-ui" style="display:none">
+      <div id="walk-touch"></div>
+      <div id="joy-base"><div id="joy-knob"></div></div>
+      <button id="walk-where-btn" class="walk-btn walk-where-btn" aria-haspopup="true" title="Go to a room"><span data-icon="pin"></span><span id="walk-where"></span><span data-icon="chev"></span></button>
+      <div id="walk-rooms" class="card" hidden></div>
+      <div id="walk-btns">
+        <button id="walk-decor" class="walk-btn" data-icon="sofa" aria-pressed="true">Furnished</button>
+        <button id="walk-cam" class="walk-btn">First person</button>
+        <button id="walk-lens" class="walk-btn" data-icon="lens">Wide</button>
+        <button id="walk-time" class="walk-btn" title="Time of day" aria-label="Time of day"></button>
+        <button id="walk-shirt" class="walk-btn" title="Change shirt color" aria-label="Shirt color"><span class="shirt-dot"></span></button>
+        <button id="walk-exit" class="walk-btn" data-icon="close">Exit</button>
+      </div>
+      <p class="t-walk-hint">Left thumb moves · swipe to look</p>
+    </div>
+
+    <div id="t-loading"><div class="t-spinner"></div><p id="t-loading-text">Loading 3D tour…</p></div>
+    <div id="t-toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <script type="module" src="tour.js"></script>
+</body>
+</html>
