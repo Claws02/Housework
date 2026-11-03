@@ -125,6 +125,19 @@ export function wallOpenings(wall, items) {
 }
 
 // ── Viewer ──────────────────────────────────────────────────────────────────
+/** Plan rectangle a floor-hole item cuts. `holeDepth` limits the cut to that much of the item's depth,
+ *  measured from its back (−z) end: a basement flight can run on under a landing that stays solid. */
+export function floorHoleRect(h) {
+  const hd = Math.min(h.holeDepth ?? h.depth, h.depth), z0 = -h.depth / 2, z1 = z0 + hd;
+  const c = Math.cos(h.rotation), s = Math.sin(h.rotation);
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const lx of [-h.width / 2, h.width / 2]) for (const lz of [z0, z1]) {
+    const px = h.x + lx * c - lz * s, py = h.y + lx * s + lz * c;    // node.rotation.y = −rotation
+    x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+  }
+  return { x0, x1, y0, y1 };
+}
+
 /** Walk-through lenses. h = horizontal field of view (°) aimed for; vmax caps the vertical on portrait screens.
  *  Natural ≈ what you take in without turning your head. Listing photos are shot around 105–120° wide,
  *  which is why rooms in listing photos look roomier than they feel in person. */
@@ -301,10 +314,9 @@ export class Viewer3D {
       const color = r.floorColor || fin.color;
       const shape = new THREE.Shape([[r.x, -r.y], [r.x + r.width, -r.y], [r.x + r.width, -(r.y + r.height)], [r.x, -(r.y + r.height)]].map(([a, b]) => new THREE.Vector2(a, b)));
       for (const h of holes) {
-        const c = Math.abs(Math.cos(h.rotation)), s = Math.abs(Math.sin(h.rotation));
-        const hw = (h.width * c + h.depth * s) / 2, hd = (h.width * s + h.depth * c) / 2;
-        const x0 = Math.max(r.x + 0.05, h.x - hw), x1 = Math.min(r.x + r.width - 0.05, h.x + hw);
-        const y0 = Math.max(r.y + 0.05, h.y - hd), y1 = Math.min(r.y + r.height - 0.05, h.y + hd);
+        const hr = floorHoleRect(h);
+        const x0 = Math.max(r.x + 0.05, hr.x0), x1 = Math.min(r.x + r.width - 0.05, hr.x1);
+        const y0 = Math.max(r.y + 0.05, hr.y0), y1 = Math.min(r.y + r.height - 0.05, hr.y1);
         if (x1 - x0 > 0.2 && y1 - y0 > 0.2) shape.holes.push(new THREE.Path([[x0, -y0], [x0, -y1], [x1, -y1], [x1, -y0]].map(([a, b]) => new THREE.Vector2(a, b))));
       }
       const top = floor.elev + (r.offset || 0);

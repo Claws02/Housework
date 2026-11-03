@@ -5,7 +5,7 @@
 // ends and large furniture; the floor height comes from room slabs, stairs, steps and the ground.
 import * as THREE from 'three';
 import { CATALOG_BY_TYPE } from './furniture.js';
-import { wallOpenings, roomAt } from './viewer3d.js';
+import { wallOpenings, roomAt, floorHoleRect } from './viewer3d.js';
 import { makeCharacter, SHIRT_COLORS } from './character.js';
 
 const RADIUS = 0.58;         // 14" body width turned sideways — fits through any gap a real person could
@@ -84,9 +84,8 @@ export class Walker {
       }
       // floor slabs (with stair holes)
       const holes = f.furniture.filter(it => CATALOG_BY_TYPE[it.type]?.floorHole).map(h => {
-        const c = Math.abs(Math.cos(h.rotation)), s = Math.abs(Math.sin(h.rotation));
-        const hw = (h.width * c + h.depth * s) / 2, hd = (h.width * s + h.depth * c) / 2;
-        return { x0: h.x - hw, x1: h.x + hw, z0: h.y - hd, z1: h.y + hd };
+        const r = floorHoleRect(h);
+        return { x0: r.x0, x1: r.x1, z0: r.y0, z1: r.y1 };
       });
       for (const r of f.rooms) slabs.push({ x0: r.x, x1: r.x + r.width, z0: r.y, z1: r.y + r.height, top: f.elev + (r.offset || 0), holes, fi, room: r });
       // furniture → oriented boxes; stairs/steps → ramps
@@ -101,7 +100,15 @@ export class Walker {
         }
         if (m === 'tree' || m === 'pine') { circles.push({ x: it.x, z: it.y, r: Math.max(0.5, it.width * 0.055), y0: y, y1: y + h }); continue; }
         if (NO_COLLIDE.has(m) || cat.opening || cat.mount === 'ceiling' || h < 1.1 || it.width * it.depth < 2.2) continue;
-        boxes.push({ x: it.x, z: it.y, c: Math.cos(it.rotation), s: Math.sin(it.rotation), hw: it.width / 2, hd: it.depth / 2, y0: y + 0.25, y1: y + h });
+        const c = Math.cos(it.rotation), s = Math.sin(it.rotation);
+        if (m === 'sectional') {
+          // an L is two runs, not a solid rectangle: back run along local −z, return down the local −x side
+          const sd = Math.min(it.seatDepth ?? 3.17, it.depth, it.width), W = it.width, D = it.depth;
+          for (const [lx, lz, hw, hd] of [[0, -D / 2 + sd / 2, W / 2, sd / 2], [-W / 2 + sd / 2, 0, sd / 2, D / 2]])
+            boxes.push({ x: it.x + lx * c - lz * s, z: it.y + lx * s + lz * c, c, s, hw, hd, y0: y + 0.25, y1: y + h });
+          continue;
+        }
+        boxes.push({ x: it.x, z: it.y, c, s, hw: it.width / 2, hd: it.depth / 2, y0: y + 0.25, y1: y + h });
       }
     });
     // Gable ends of roofs act as walls (they're the upstairs side walls of a Cape)

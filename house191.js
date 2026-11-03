@@ -38,7 +38,7 @@ export function buildHouse191() {
     const cat = CATALOG_BY_TYPE[type];
     const it = { id: id('f'), type, label: o.label ?? cat.label, x, y, width: o.w ?? cat.width, depth: o.d ?? cat.depth,
       rotation: (o.rot ?? 0) * Math.PI / 180, color: o.color ?? cat.color };
-    for (const k of ['seatDepth', 'color2', 'height', 'lift', 'pattern', 'open', 'grid', 'glass', 'stacked', 'umbrella', 'style', 'rails', 'rail', 'ceil', 'shutters', 'curtain', 'headboard', 'footboard', 'builtIn'])
+    for (const k of ['seatDepth', 'color2', 'height', 'lift', 'pattern', 'open', 'grid', 'glass', 'stacked', 'umbrella', 'style', 'rails', 'rail', 'ceil', 'shutters', 'curtain', 'headboard', 'footboard', 'builtIn', 'holeDepth'])
       if (o[k] !== undefined) it[k] = o[k];
     F.furniture.push(it);
     return it;
@@ -102,11 +102,16 @@ export function buildHouse191() {
   const BUMP = { x1: W + EXT + 4.58, y0: 11.25 - 8.58 };            // hall 12'0" × 8'7" = hall 7'5" + mudroom bump 4'7"
   const GAR = { x0: OUT.x1 + 9.42 + EXT, y0: -3.25, w: 25.75, d: 27.5 };   // porch deck 9'5" wide between house and garage
   const gx0 = GAR.x0 - EXT / 2, gx1 = GAR.x0 + GAR.w + EXT / 2, gy0 = GAR.y0 - EXT / 2, gy1 = GAR.y0 + GAR.d + EXT / 2;
-  const DOOR_X = 15.0;                                              // front door: living room corner at the foot of the stair (plan)
+  const DOOR_X = 16.7;                                              // front door: opens onto the landing at the foot of the stair (plan)
 
   room('Living Room', xL, yRow, xStairL - xL, yF - yRow, { wall: '#ebe1bf', color: '#3b82f6' });       // warm cream (photo)
   room('Stairs', xStairL, yRow, xStairR - xStairL, yF - yRow, { wall: '#ebe1bf', color: '#94a3b8' });
-  room('Closet', xStairR, yRow, xBedW - xStairR, yF - yRow, { wall: '#ecebe6', color: '#64748b' });
+  // the 2' column between the stair and the bedroom (plan, back to front): hall closet, chimney chase,
+  // the bedroom's closet, and the coat closet that opens onto the front landing
+  const yChase0 = 13.8, yChase1 = 15.2, yCoat = 19.85;
+  room('Hall Closet', xStairR, yRow, xBedW - xStairR, yChase0 - yRow, { wall: '#ecebe6', color: '#64748b' });
+  room('Bedroom Closet', xStairR, yChase1, xBedW - xStairR, yCoat - yChase1, { wall: '#ecebe6', color: '#64748b' });
+  room('Coat Closet', xStairR, yCoat, xBedW - xStairR, yF - yCoat, { wall: '#ecebe6', color: '#64748b' });
   room('Kitchen', 9.08, yB, xBath - 9.08, yRow - yB, { wall: '#d9dbdc', color: '#22c55e' });
   room('Breakfast Nook', xL, yB, 9.08 - xL, yRow - yB, { wall: '#d9dbdc', color: '#84cc16' });
   room('Dining Room', xL, dy0o + EXT / 2, dx1o - EXT / 2 - xL, yB - (dy0o + EXT / 2), { wall: '#dcc896', color: '#f59e0b', ceiling: false });
@@ -132,7 +137,10 @@ export function buildHouse191() {
   wall(xR, BUMP.y0 - EXT / 2, xR, yBath, { t: EXT });                      // bath ↔ mudroom
   wall(xBath, yB, xBath, yBath, P);
   wall(xBath, yBath, xR, yBath, P);
-  wall(xStairL, yRow, xStairL, 20.4, P);                                    // stair L (open at the bottom to the living room)
+  wall(xStairL, yRow, xStairL, 17.0, P);                                    // stair L: full wall, then a rail down to the landing
+  wall(xL, yRow, 3.6, yRow, P); wall(14.0, yRow, xStairL, yRow, P);          // short returns either side of the wide opening to the kitchen
+  wall((xStairR + xBedW) / 2, yChase0, (xStairR + xBedW) / 2, yChase1, { t: xBedW - xStairR - INT });   // chimney chase (solid)
+  wall(xStairR, yCoat, xBedW, yCoat, P);
   wall(xStairR, yRow, xStairR, yF, P);
   wall(xStairL, yRow, xStairR, yRow, P);                                    // basement door wall
   wall(xStairR, yRow, xR, yRow, P);
@@ -155,7 +163,9 @@ export function buildHouse191() {
   door(29, yBath, 0, { open: 75 });                                         // bath
   door(18.08, yRow, 0, { open: 0, label: 'Basement Door' });
   door(29.6, yRow, 0, { open: 80, rot: 180 });                              // bedroom
-  item('door-double', xBedW, 15.8, { rot: 90, w: 3.6, label: 'Closet Doors' });
+  item('door-double', xBedW, (yChase1 + yCoat) / 2, { rot: 90, w: 3.6, label: 'Bedroom Closet Doors' });
+  door((xStairR + xBedW) / 2, yRow, 0, { w: 1.9, open: 0, label: 'Hall Closet Door' });
+  door(xStairR, 21.45, 90, { w: 2.2, open: 0, label: 'Coat Closet Door' });
   door(35.6, yRow + INT / 2 + 0.01, 0, { type: 'door-ext', label: 'Side Door' });
   win(BUMP.x1 + EXT / 2, 6.6, 90, { type: 'window-sm' });
   item('garage-door', GAR.x0 + 6.4, gy1, { rot: 0, lift: -1 });
@@ -166,9 +176,10 @@ export function buildHouse191() {
 
   // Stairs: main flight climbs from the living-room end toward the rear and lands in the upstairs
   // hall at y = 13.58; the basement flight (8" risers, 9" treads) descends beneath it.
-  const S = { x: 18.08, top: 13.58, bottom: 22.2 };
-  item('stairs', S.x, (S.top + S.bottom) / 2, { w: 3, d: S.bottom - S.top, height: 9, rot: 0 });
-  item('stairs-down', S.x, (12.6 + 21.6) / 2, { w: 3, d: 9, height: 8, rot: 0, rails: [] });
+  const S = { x: 18.08, top: yRow + INT / 2, bottom: 19.67 };
+  item('stairs', S.x, (S.top + S.bottom) / 2, { w: 3, d: S.bottom - S.top, height: 9, rot: 0, rail: 'left' });
+  // basement flight runs down beneath it toward the front; the landing above its lower end stays solid
+  item('stairs-down', S.x, S.top + 0.15 + 4.5, { w: 3, d: 9, height: 8, rot: 0, rails: [], holeDepth: S.bottom - S.top - 0.15 });
 
   // Living room (clear 0..16.39 × 11.63..23.04; 19'7" incl. the stair)
   // fireplace wall: 2'11" built-in + 5'6" fireplace + 2'11" built-in = the full 11'5"
@@ -179,14 +190,12 @@ export function buildHouse191() {
   item('tv', 1.75, 17.335, { rot: -90, w: 4.6, lift: 4.7 });
   // Seating (photos): 9'6" run facing the fireplace with a 3' walkway behind it from the front door to
   // the kitchen, 7'6" run under the front windows; 38"-deep seats; ottoman 16" from both seat fronts.
-  item('rug-8x10', 7.9, 17.6, { rot: 90, color: '#c2ab95' });
-  item('sofa-l', 9.45, 18.15, { rot: 180, w: 7.5, d: 9.5, seatDepth: 3.17, color: '#cfc9bf', color2: '#6e7176' });
-  item('recliner', 4.4, 13.4, { rot: -60, color: '#5a4334' });
-  item('ottoman', 7.4, 17.3, { label: 'Storage Ottoman', w: 2.6, d: 2.2, color: '#d9d3c7' });
-  item('pouf', 4.0, 17.9, {});
+  item('rug-8x10', 6.4, 17.6, { rot: 90, color: '#c2ab95' });
+  item('sofa-l', 6.65, 19.29, { rot: 180, w: 9.5, d: 7.5, seatDepth: 3.17, color: '#cfc9bf', color2: '#6e7176' });
+  item('recliner', 10.0, 13.3, { rot: 65, color: '#5a4334' });
+  item('ottoman', 5.5, 17.2, { label: 'Storage Ottoman', w: 2.6, d: 2.2, color: '#d9d3c7' });
   item('wall-art', 11.8, 22.95, { rot: 180, w: 1.3, height: 1.7, lift: 4.3, color: '#7a9a6a', label: 'Botanical Print' });
-  item('side-table', 4.8, 22.1, {});
-  item('floor-lamp', 2.1, 21.4, {});
+  item('floor-lamp', 12.3, 22.3, {});
   item('curtains', 3.6, 22.8, { height: 7.35 });
   item('curtains', 8.6, 22.8, { height: 7.35 });
   for (const x of [3.6, 8.2, 12.8]) for (const y of [14.4, 20.4]) item('recessed-light', x, y, {});
@@ -292,7 +301,7 @@ export function buildHouse191() {
   item('shed', 22, -64, { rot: 0 });
   item('kayak', 28.5, -63, { rot: 10 });
   item('fire-pit', 4, -40, {});
-  for (const x of [0.8, 4.6, 9.4, 19.4, 23.4, 29.6]) item('shrub', x, OUT.y1 + 1.2, {});
+  for (const x of [0.8, 4.6, 9.4, 21.2, 24.4, 29.6]) item('shrub', x, OUT.y1 + 1.2, {});
   item('hydrangea', 7.0, OUT.y1 + 1.5, {}); item('hydrangea', 26.2, OUT.y1 + 1.5, { color2: '#e07a3a' });
   for (const x of [2.6, 6.2, 10.4, 20.4, 25, 31]) item('hosta', x, OUT.y1 + 2.7, {});
   for (let x = 0.5; x < 32; x += 1.6) if (Math.abs(x - DOOR_X) > 2.6) item('boulder', x, OUT.y1 + 3.6, { w: 1, d: 0.8, height: 0.5 });
@@ -307,9 +316,10 @@ export function buildHouse191() {
   for (const [t, x, y] of trees) item(t, x, y, { rot: (x * 37 + y * 11) % 360 });
   item('fence', 30, -104, { w: 120 });
 
-  // ═══ 2ND FLOOR — rear shed dormer, front roof slope over a 5' knee wall ══════
-  // Clear interior runs between the gable inner faces (x −0.1 … 32.98) and from the dormer face
-  // (y 3.37) to the knee wall (y 20.79): 17'5" deep, matching the bedroom.
+  // ═══ 2ND FLOOR — rear shed dormer, front roof slope ════════════════════════
+  // Clear interior runs between the gable inner faces (x −0.1 … 32.98) and 17'5" from the dormer face to the
+  // front wall, matching the bedroom. Laid out below in its original frame, then shifted (DY2) so the upstairs
+  // hall meets the head of the stair, which the 1st-floor plan puts at the kitchen wall.
   on(2);
   const gx0i = OUT.x0 + 0.4, gx1i = OUT.x1 - 0.4;          // gable inner faces
   const yKnee = 20.79, yDorm = yKnee - 17.42;                // inner faces
@@ -318,7 +328,8 @@ export function buildHouse191() {
   const xB2 = xP + INT / 2 + 6.25 + INT / 2;                  // bath/hall 6'3", bedroom 12'2"
   const yWic = yDorm + 4.92 + INT / 2;                        // WIC/laundry 4'11"
   const xWic = gx0i + 8.42 + INT / 2, xLau = xWic + INT / 2 + 3.5 + INT / 2;
-  const yBa2 = yDorm + 6.75 + INT / 2, yHall = S.top;         // bath 6'9", hall to the stair head
+  const yBa2 = yDorm + 6.75 + INT / 2, yHall = 13.58;         // bath 6'9", hall 3'1" to the stair head
+  const DY2 = yHall - S.top;                                  // shift applied to the whole floor at the end
   room('Primary Bedroom', gx0i, yWic, xP - gx0i, yKw - yWic, { wall: '#c8cbcd', color: '#3b82f6', ceiling: false });
   room('W.I.C.', gx0i, yDw, xWic - gx0i, yWic - yDw, { wall: '#c8cbcd', color: '#8b5cf6', ceiling: false });
   room('Laundry', xWic, yDw, xLau - xWic, yWic - yDw, { floor: 'tile', floorColor: '#8d8c88', wall: '#e9e6dc', color: '#06b6d4', ceiling: false });
@@ -330,7 +341,7 @@ export function buildHouse191() {
   room('Bedroom', xB2, yDw, gx1i - xB2, yKw - yDw, { wall: '#5f6b7f', color: '#ec4899', ceiling: false });
 
   wall(gx1i, yDw, gx0i, yDw, { ext: true, h: 8.5, t: EXT });               // rear dormer face
-  wall(gx0i, yKw, gx1i, yKw, { h: 5, t: INT });                            // front knee wall
+  wall(gx0i, yKw, gx1i, yKw, { h: 8, t: INT });                            // front wall, trimmed by the roof slope
   wall(gx0i, yWic, xP, yWic, P);
   wall(xWic, yDw, xWic, yWic, P);
   wall(xLau, yDw, xLau, yWic, P);
@@ -389,11 +400,15 @@ export function buildHouse191() {
   item('plant-sm', 31.6, yDorm + 0.6, { lift: 3 });
   item('ceiling-light', 26.4, 10.5, {});
 
+  for (const r of F.rooms) r.y -= DY2;
+  for (const w of F.walls) { w.y1 -= DY2; w.y2 -= DY2; }
+  for (const it of F.furniture) it.y -= DY2;
+
   // ═══ ROOFS ════════════════════════════════════════════════════════════════
   // Main Cape: 12/12 gable over the outer faces, ridge along x, full-width rear shed dormer.
   const mainRidge = 10.5 + (OUT.y1 - OUT.y0) / 2 + 0.75;
   roof({ name: 'Main roof', x: OUT.x0, y: OUT.y0, w: OUT.x1 - OUT.x0, d: OUT.y1 - OUT.y0, axis: 'x', eave: 10.5, ridge: mainRidge,
-    dormer: { x0: gx0i, x1: gx1i, wallY: yDw - EXT / 2, top: 17.5 }, ceilingAt: 17 });
+    dormer: { x0: gx0i, x1: gx1i, wallY: yDw - DY2 - EXT / 2, top: 17.5 }, ceilingAt: 17 });
   roof({ name: 'Dining roof', x: OUT.x0, y: dy0o, w: dx1o - OUT.x0, d: OUT.y0 - dy0o, axis: 'y', eave: 9, ridge: 12.8, noGable: ['s'] });
   roof({ name: 'Porch roof', x: OUT.x1, y: BUMP.y0 - EXT, w: GAR.x0 - EXT - OUT.x1, d: 23.8 - (BUMP.y0 - EXT), axis: 'y', eave: 8.25, ridge: 12, noGable: ['n'] });
   roof({ name: 'Garage roof', x: gx0 - EXT / 2, y: gy0 - EXT / 2, w: gx1 - gx0 + EXT, d: gy1 - gy0 + EXT, axis: 'y', eave: 8.5, ridge: 16.8 });
