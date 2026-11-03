@@ -9,6 +9,12 @@ A browser-based 2D/3D home designer (Three.js, no build step). It comes with two
 Serve the folder with any static server (`python3 -m http.server`) and open `index.html`.
 Add `?view=3d` to the URL to open straight into 3D, and `?house=dream` or `?house=191` to open that house.
 
+## Online (GitHub Pages)
+The built site is published from the `gh-pages` branch: **https://claws02.github.io/Housework/**
+(landing page → listing tour or designer). To update it after changes: `tools/deploy-pages.sh`
+(builds `site/` and force-pushes it to `gh-pages`). One-time setup: repo Settings → Pages → Deploy from a branch →
+`gh-pages` / root.
+
 ## Using it
 - **Floors**: tabs at the top right switch the level you're editing. The level below shows as a dashed ghost.
 - **2D Plan**: draw rooms (R) and walls (W), select (V) and erase (E). Drag a wall to move it, or drag its

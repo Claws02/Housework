@@ -28,5 +28,26 @@ const wrap = src => {
 };
 writeFileSync(join(out, 'tour.html'), wrap(readFileSync(join(root, 'tour.html'), 'utf8')));
 writeFileSync(join(out, 'designer.html'), wrap(readFileSync(join(root, 'index.html'), 'utf8')));
-writeFileSync(join(out, 'index.html'), '<!doctype html><meta charset="utf-8"><title>3D Home Tours</title><meta http-equiv="refresh" content="0; url=tour.html' + '"><a href="tour.html">Open the tour</a>\n');
+writeFileSync(join(out, 'index.html'), `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CLAWEngineering 3D Homes</title>
+<style>
+  :root { --bg: #f4f6f9; --card: #fff; --text: #17212f; --muted: #5b6878; --accent: #1f4e79; color-scheme: light; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0f1623; --card: #17202e; --text: #eef3fa; --muted: #9aa8bb; --accent: #4f8fd0; color-scheme: dark; } }
+  * { box-sizing: border-box; } body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, sans-serif; display: grid; place-items: center; padding: 24px 16px; }
+  main { width: 100%; max-width: 640px; } h1 { font-size: 1.6rem; margin: 0 0 4px; } p.sub { color: var(--muted); margin: 0 0 24px; }
+  a.card { display: block; background: var(--card); border-radius: 14px; padding: 18px 20px; margin-bottom: 14px; text-decoration: none;
+    color: inherit; box-shadow: 0 4px 18px rgba(10,20,35,.10); border: 1px solid rgba(127,127,127,.15); }
+  a.card:hover { border-color: var(--accent); } a.card b { display: block; font-size: 1.1rem; color: var(--accent); }
+  a.card span { color: var(--muted); font-size: .92rem; } footer { color: var(--muted); font-size: .8rem; margin-top: 18px; }
+</style></head><body><main>
+<h1>CLAWEngineering 3D Homes</h1>
+<p class="sub">3D home models from listing photos and floor plans.</p>
+<a class="card" href="tour.html"><b>Listing tour</b><span>View-only 3D tour for buyers: walk through, floors, furnished/unfurnished. Add <code>?l=&lt;listing&gt;</code> for a listing and <code>&amp;mls=1</code> for the unbranded MLS version.</span></a>
+<a class="card" href="designer.html"><b>Designer</b><span>The full editor: 2D plan, 3D view, walk-through, 191 Webster St and the Dream House.</span></a>
+<footer>Works on phones and computers. Best in Chrome, Safari or Edge.</footer>
+</main></body></html>
+`);
+writeFileSync(join(out, '.nojekyll'), '');
 console.log('Built site/ — upload the whole folder. Tour links: tour.html?l=<id> (branded), tour.html?l=<id>&mls=1 (MLS)');
