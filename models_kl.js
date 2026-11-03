@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { mat } from './textures.js';
-import { BUILDERS as B, M, lampMat, seeded, geo, r3, shaker, drawerFront, books } from './models3d.js';
+import { BUILDERS as B, M, lampMat, seeded, geo, r3, shaker, drawerFront, books, legs4 } from './models3d.js';
 
 const PI = Math.PI;
 const shadeHex = (hex, f) => '#' + new THREE.Color(hex).multiplyScalar(f).getHexString();
@@ -670,3 +670,45 @@ B.vaseFlowers = (k, w, d, h, c, c2, it) => {
 };
 
 B.basket = (k, w, d, h) => basket(k, w, d, h, 0, 0, 0);
+
+// ── Bedding ──────────────────────────────────────────────────────────────────
+// Made bed with soft, puffy shapes: upholstered headboard, mattress, a duvet that drapes over the sides and
+// foot with a turned-down sheet at the top, sleeping pillows leaning on euro shams, an accent pillow and a
+// throw across the foot. Everything stays inside w × d (w = overall frame width). c = duvet, c2 = frame.
+B.bed = (k, w, d, h, c, c2, it) => {
+  const wood = it.pattern === 'wood';
+  const frame = wood ? M.wood(c2) : M.plain(c2, 0.5);
+  const duvet = it.pattern === 'stripes' ? mat('stripes', c, { roughness: 0.95, tile: 3 })
+              : it.pattern === 'floral' ? mat('floral', c, { roughness: 0.95, tile: 3 }) : M.fabric(c);
+  const sheet = M.linen(), railH = 1.0, mt = Math.max(0.55, h - railH), top = railH + mt;
+  const hbH = it.headboard ?? 4.3;
+  // frame: rails, legs, headboard (upholstered panel unless it's a wood bed), footboard
+  k.box(w, railH - 0.3, d - 0.3, frame, 0, 0.3, 0.05);
+  legs4(k, w, d - 0.2, 0.3, 0.12, frame, 0.15, false);
+  k.box(w - 0.1, hbH, 0.22, frame, 0, 0, -d / 2 + 0.11);
+  for (const sx of [-1, 1]) k.box(0.22, hbH + 0.12, 0.3, frame, sx * (w / 2 - 0.11), 0, -d / 2 + 0.15);
+  k.box(w, 0.12, 0.3, frame, 0, hbH, -d / 2 + 0.15);
+  if (!wood) plush(k, w - 0.6, hbH - railH - 0.5, 0.22, M.fabric(shadeHex(c2, 1.0)), 0, railH + 0.25, -d / 2 + 0.3, { e: 0.22, puff: 0.18, axis: 'z' });
+  if (it.footboard !== false) k.box(w, railH + 0.5, 0.2, frame, 0, 0, d / 2 - 0.1);
+  // mattress
+  plush(k, w - 0.3, mt, d - 0.55, sheet, 0, railH, 0.08, { e: 0.16, puff: 0.04 });
+  // duvet: puffy top over the lower ¾, draped sides and foot
+  const z0 = -d / 2 + 0.3 + 1.75, z1 = d / 2 - 0.3, cov = z1 - z0, dw = w - 0.12;
+  plush(k, dw, 0.32, cov, duvet, 0, top - 0.08, (z0 + z1) / 2, { e: 0.32, puff: 0.3 });
+  for (const sx of [-1, 1]) plush(k, 0.14, mt * 0.85, cov, duvet, sx * (dw / 2 - 0.05), railH + mt * 0.12, (z0 + z1) / 2, { e: 0.3, puff: 0.1, axis: 'z' });
+  plush(k, dw, mt * 0.85, 0.14, duvet, 0, railH + mt * 0.12, z1 - 0.03, { e: 0.3, puff: 0.1, axis: 'z' });
+  plush(k, dw - 0.04, 0.26, 0.55, sheet, 0, top + 0.02, z0 - 0.02, { e: 0.45, puff: 0.2 });        // turned-down sheet
+  // pillows: euro shams upright against the headboard, sleeping pillows leaning on them, an accent pillow
+  const n = w < 4 ? 1 : 2, pw = Math.min(2.5, (w - 0.5) / n);
+  for (let i = 0; i < n; i++) {
+    const x = -((n - 1) * pw) / 2 + i * pw;
+    const euro = plush(k, pw - 0.08, 1.75, 0.5, sheet, x, top - 0.05, -d / 2 + 0.55, { e: 0.4, puff: 0.35, axis: 'z' });
+    euro.rotation.x = -0.12;
+    const p = plush(k, pw - 0.2, 0.5, 1.35, sheet, x, top, -d / 2 + 1.25, { e: 0.45, puff: 0.4 });
+    p.rotation.x = -0.45; p.position.y += 0.32;
+  }
+  const accent = plush(k, Math.min(1.7, w * 0.3), 1.0, 0.38, M.fabric(shadeHex(c, 0.75)), 0, top + 0.02, -d / 2 + 1.75, { e: 0.4, puff: 0.4, axis: 'z' });
+  accent.rotation.x = -0.35;
+  // throw folded across the foot
+  plush(k, dw + 0.02, 0.14, 1.2, mat('knit', shadeHex(c2 === '#f3f1ec' ? '#c9b9a0' : c2, 1), { roughness: 1, tile: 1.2 }), 0, top + 0.17, z1 - 0.85, { e: 0.35, puff: 0.15 });
+};

@@ -546,7 +546,8 @@ export function lawnMaterial(finish, color, tile = 10) {
 // When assets/tex/manifest.json lists a texture, it replaces the procedural one of the same name:
 //   { "oak": { "map": "oak_diff.jpg", "normal": "oak_nor.jpg", "rough": "oak_rough.jpg", "ft": 4, "avg": "#a07850" } }
 // ft = feet covered by one image (real-world scale); avg = the image's average colour, so a finish colour
-// (a darker stain, a grey tile) can tint it. tools/fetch_textures.py downloads CC0 Poly Haven sets and writes it.
+// (a darker stain, a grey tile) can tint it. tools/make_textures.py generates the house's own sets;
+// tools/fetch_textures.py can add CC0 Poly Haven photo sets when that site is reachable.
 let PHOTO = {};
 const TEX_DIR = new URL('./assets/tex/', import.meta.url);
 export const photoTexturesReady = fetch(new URL('manifest.json', TEX_DIR), { cache: 'no-cache' })
@@ -572,7 +573,7 @@ function photoMaterial(name, color, params) {
   for (const k of ['r', 'g', 'b']) tint[k] = Math.min(2, tint[k] / Math.max(avg[k], 0.02));
   const m = new THREE.MeshStandardMaterial({ ...params, color: tint, map: photoTex(p.map, p.ft || 4, true) });
   if (p.normal) m.normalMap = photoTex(p.normal, p.ft || 4, false);
-  if (p.rough) { m.roughnessMap = photoTex(p.rough, p.ft || 4, false); m.roughness = Math.min(1, (params.roughness ?? 0.7) * 1.4); }
+  if (p.rough) { m.roughnessMap = photoTex(p.rough, p.ft || 4, false); m.roughness = 1; }   // the map holds absolute roughness
   return m;
 }
 

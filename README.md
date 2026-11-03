@@ -49,6 +49,11 @@ phone sideways shows the most. The tour also lets the viewer set their own heigh
 - **Indoors:** a real photographed interior (CC0 Poly Haven HDRI, `assets/hdri/`) lights the rooms and fills reflections,
   and the windows nearest you become soft area lights, so daylight pools in from outside.
 - **Outdoors:** the physical sky matches the sun; leaf-card trees and shrubs (`models_nature.js`) and a patchy lawn.
+- **Material textures:** `python3 tools/make_textures.py` generates the house's own seamless texture sets (oak floor,
+  furniture wood, butcher block, clapboard, cedar shakes, roof shingles, brick, ledgestone, quartz, porcelain and
+  subway tile, carpet, linen, leather, deck, concrete, asphalt, gravel, lawn) with colour, normal and roughness maps at
+  real-world scale into `assets/tex/` (~6 MB). They're listed in `assets/tex/manifest.json` and replace the small
+  in-browser textures, tinted to whatever finish colour you pick.
 - **Photo textures (optional):** `python3 tools/fetch_textures.py` downloads CC0 Poly Haven texture sets into
   `assets/tex/` and lists them in `assets/tex/manifest.json`. Any texture named there (oak floors, siding, roof,
   lawn, counters, fabric…) replaces the generated one, tinted to the colour you pick; with an empty manifest the
