@@ -883,8 +883,10 @@ export class Viewer3D {
 
   _animate() {
     this._animId = requestAnimationFrame(() => this._animate());
-    const dt = Math.min(0.05, this._clock.getDelta());
-    if (this.walker) this.walker.update(dt);
+    // Walking keeps real-world speed on slow devices: a long frame is split into ≤50 ms steps instead of
+    // being clipped, so a laptop drawing 15 frames a second still walks at 3 mph.
+    const real = Math.min(0.5, this._clock.getDelta()), dt = Math.min(0.05, real);
+    if (this.walker) { const n = Math.ceil(real / 0.05) || 1; for (let i = 0; i < n; i++) this.walker.update(real / n); }
     else this.controls.update();
     // aim the sun's shadow box at what you're looking at (tight & crisp when walking)
     if (this.walker) this.atmo.update(dt, this.walker.pos, 38, this.camera.position);

@@ -11,6 +11,8 @@
 //   6. doors & windows that don't sit on a wall, or that overlap each other
 //   7. items outside every room (lost in the yard / between rooms)
 //   8. seats facing away from their table / TV / fire, or straight into a wall
+//   9. completeness: gaps in outside walls, walls with nothing over them, wall-hung items off the wall,
+//      rooms without a light, bedrooms without a window or closet
 import { readFileSync } from 'node:fs';
 import { CATALOG_BY_TYPE as CAT } from '../furniture.js';
 import { buildHouse191 } from '../house191.js';
@@ -21,6 +23,8 @@ const house = file === 'dream' ? buildDreamHouse() : file ? JSON.parse(readFileS
 const ft = v => { const i = Math.round(v * 12); return `${Math.floor(i / 12)}'${i % 12}"`; };
 const issues = [];
 const report = (sev, floor, msg) => issues.push({ sev, floor, msg });
+const advice = [];
+const advise = (floor, msg) => advice.push({ floor, msg });
 
 // ── 1. Catalog vs real-world sizes (inches: w, d, h with tolerance) ─────────
 const STD = {
@@ -221,12 +225,63 @@ house.floors.forEach(f => {
   }
 });
 
+// ── 9. Completeness: does it read as a whole, working house? ─────────────────
+{
+  const roofs = house.site?.roofs || [];
+  const underRoof = (x, y) => roofs.some(rf => { const o = (rf.overhang ?? 0.75) + 0.3; return x >= rf.x - o && x <= rf.x + rf.w + o && y >= rf.y - o && y <= rf.y + rf.d + o; });
+  const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 0.35;
+  const onSeg = (p, w) => segDist(p[0], p[1], [w.x1, w.y1], [w.x2, w.y2]) < (w.thick ?? 0.4) / 2 + 0.05;
+  house.floors.forEach((f, fi) => {
+    const ext = f.walls.filter(w => w.ext), above = house.floors[fi + 1];
+    // (a) exterior walls close up: every end meets another wall
+    for (const w of ext) for (const p of [[w.x1, w.y1], [w.x2, w.y2]]) {
+      const onGable = roofs.some(rf => rf.axis !== 'y'
+        ? (Math.abs(p[0] - rf.x) < 0.7 || Math.abs(p[0] - rf.x - rf.w) < 0.7) && p[1] >= rf.y - 0.5 && p[1] <= rf.y + rf.d + 0.5
+        : (Math.abs(p[1] - rf.y) < 0.7 || Math.abs(p[1] - rf.y - rf.d) < 0.7) && p[0] >= rf.x - 0.5 && p[0] <= rf.x + rf.w + 0.5);   // meets a roof's gable end
+      const ok = onGable || f.walls.some(v => v !== w && (near(p, [v.x1, v.y1]) || near(p, [v.x2, v.y2]) || onSeg(p, v)));
+      if (!ok) report('complete', f.name, `Gap in the outside wall: a wall ends in mid-air at ${p[0].toFixed(1)},${p[1].toFixed(1)}`);
+    }
+    // (b) something over every outside wall: a roof, or the floor above
+    for (const w of ext) {
+      const mx = (w.x1 + w.x2) / 2, my = (w.y1 + w.y2) / 2;
+      const topTo = f.elev + (w.base || 0) + (w.height ?? f.height);
+      const floorAbove = above && above.elev <= topTo + 0.6 && above.rooms.some(r => mx >= r.x - 0.6 && mx <= r.x + r.width + 0.6 && my >= r.y - 0.6 && my <= r.y + r.height + 0.6);
+      if (!underRoof(mx, my) && !floorAbove && f.elev >= 0) report('complete', f.name, `Outside wall at ${mx.toFixed(1)},${my.toFixed(1)} has no roof or floor above it`);
+    }
+    // (c) wall-hung things are on a wall
+    for (const it of f.furniture) {
+      const c = CAT[it.type]; if (!c || c.opening) continue;
+      const hung = ['wallArt', 'mirror', 'upperCab', 'elecPanel', 'smartPanel', 'evCharger'].includes(c.model) || (c.model === 'tv' && (it.lift ?? 0) > 3);
+      if (!hung) continue;
+      const fx = -Math.sin(it.rotation), fy = Math.cos(it.rotation), bx = it.x - fx * it.depth / 2, by = it.y - fy * it.depth / 2;   // middle of its back
+      const d = Math.min(...f.walls.map(w => segDist(bx, by, [w.x1, w.y1], [w.x2, w.y2]) - (w.thick ?? 0.4) / 2));
+      const onUnit = f.furniture.some(o => o !== it && ['builtins', 'fireplace', 'mediaFireplace', 'tvStand', 'dresser', 'sideboard', 'hutch'].includes(CAT[o.type]?.model) && itemsDist(it, o) < 0.6);
+      if (d > 0.5 && !onUnit) report('complete', f.name, `${it.label} at ${it.x.toFixed(1)},${it.y.toFixed(1)} should hang on a wall (nearest wall ${ft(d)} behind it)`);
+    }
+    // (d) rooms you'd live in have a light; bedrooms have a window and a closet
+    const lights = f.furniture.filter(it => ['ceilingLight', 'recessed', 'pendant', 'pendantDome', 'floorLamp', 'tableLamp', 'lantern'].includes(CAT[it.type]?.model));
+    const wins = f.furniture.filter(it => ['window', 'slider'].includes(CAT[it.type]?.model) || it.type === 'french-door');
+    const byName = new Map();                                    // a room drawn as several rectangles counts once
+    for (const r of f.rooms) if (!r.outdoor) byName.set(r.name, [...(byName.get(r.name) || []), r]);
+    for (const [, parts] of byName) {
+      const r = parts.reduce((a, b) => (a.width * a.height > b.width * b.height ? a : b));
+      if (r.outdoor || parts.reduce((t, q) => t + q.width * q.height, 0) < 30 || /closet|w\.?i\.?c|linen|chase|stair|landing|pantry|storage|garage|basement|mechanical|bulk/i.test(r.name)) continue;
+      const inR = (x, y, m = 0) => parts.some(q => x >= q.x - m && x <= q.x + q.width + m && y >= q.y - m && y <= q.y + q.height + m);
+      if (!lights.some(l => inR(l.x, l.y))) advise(f.name, `${r.name} has no light fixture or lamp`);
+      if (/bed|guest|bunk/i.test(r.name) && !/bath|closet|vestibule|deck/i.test(r.name)) {
+        if (!wins.some(w => inR(w.x, w.y, 0.5))) advise(f.name, `${r.name} has no window (a bedroom needs one for egress)`);
+        const closet = f.rooms.some(q => q !== r && /closet|w\.?i\.?c/i.test(q.name) && q.x <= r.x + r.width + 8 && q.x + q.width >= r.x - 8 && q.y <= r.y + r.height + 8 && q.y + q.height >= r.y - 8)
+          || f.furniture.some(it => ['closet', 'wardrobe'].includes(CAT[it.type]?.model) && inR(it.x, it.y));
+        if (!closet) advise(f.name, `${r.name} has no closet`);
+      }
+    }
+  });
+}
+
 // ── Designer clearance guidelines (advice, not errors) ──────────────────────
 // These are comfort guidelines; an older house (like 191 Webster's 28" kitchen aisle) can be
 // tighter as built. Use them as targets when designing a new layout.
 const GUIDE = { walk: 3.0, seatToTable: [1.33, 1.75], workAisle: 3.5, bedSide: 2.5, toiletFront: 2.0 };
-const advice = [];
-const advise = (floor, msg) => advice.push({ floor, msg });
 const inPoly = (P, x, y) => { let s0 = 0; for (let i = 0; i < P.length; i++) { const [x1, y1] = P[i], [x2, y2] = P[(i + 1) % P.length]; const c = (x2 - x1) * (y - y1) - (y2 - y1) * (x - x1); if (c !== 0) { if (s0 === 0) s0 = Math.sign(c); else if (Math.sign(c) !== s0) return false; } } return true; };
 const isFloorObstacle = (f, it) => {
   const c = CAT[it.type]; if (!c || c.opening || c.mount === 'ceiling' || c.layer === 0 || IGNORE.has(c.model) || FABRIC.has(c.model)) return false;
@@ -340,7 +395,7 @@ house.floors.forEach((f, fi) => {
   }
 });
 
-const order = ['size', 'facing', 'door', 'overlap', 'wall', 'window', 'opening', 'outside'];
+const order = ['size', 'complete', 'facing', 'door', 'overlap', 'wall', 'window', 'opening', 'outside'];
 issues.sort((a, b) => order.indexOf(a.sev) - order.indexOf(b.sev));
 for (const i of issues) console.log(`[${i.sev}] ${i.floor}: ${i.msg}`);
 console.log(issues.length ? `\n${issues.length} issue(s)` : 'No issues found');
