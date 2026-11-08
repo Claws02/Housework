@@ -1,0 +1,25 @@
+{
+  "id": "demo-coastal-cape",
+  "demo": true,
+  "publish": true,
+  "status": "live",
+  "address": "Sample Home: Coastal Cape",
+  "city": "Designed by CLAWEngineering · not a real listing",
+  "price": null,
+  "beds": 5,
+  "baths": 3.5,
+  "sqft": 4600,
+  "agent": {
+    "name": "Your Name Here",
+    "brokerage": "Your Brokerage",
+    "phone": "(555) 555-0123",
+    "email": "agent@example.com",
+    "photo": ""
+  },
+  "furnished": true,
+  "time": "day",
+  "credit": true,
+  "creditOnMls": false,
+  "disclaimer": "Sample 3D rendering of an original CLAWEngineering design. Not a real property.",
+  "houseFile": "demo-coastal-cape.house.json"
+}

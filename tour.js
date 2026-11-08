@@ -15,7 +15,7 @@ const PREF_KEY = 'tour-prefs';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
-const listingId = (params.get('l') || DEFAULT_LISTING).replace(/[^a-z0-9_-]/gi, '');
+const listingId = (params.get('l') || document.querySelector('meta[name="default-listing"]')?.content || DEFAULT_LISTING).replace(/[^a-z0-9_-]/gi, '');
 const unbranded = params.get('mls') === '1' || params.get('mls') === 'true';
 
 const store = {
@@ -66,6 +66,7 @@ async function loadListing() {
   const res = await fetch(`listings/${listingId}.json`, { cache: 'no-cache' });
   if (!res.ok) throw new Error(`No tour found for "${listingId}".`);
   const data = await res.json();
+  if (tourEnded(data)) return { listing: data, house: null, ended: true };   // don't even fetch the model
   let house = data.house;
   if (!house && data.houseFile) {
     const hr = await fetch(`listings/${data.houseFile.replace(/[^a-z0-9_.-]/gi, '')}`, { cache: 'no-cache' });
@@ -74,6 +75,23 @@ async function loadListing() {
   }
   if (!house?.floors?.length) throw new Error('This tour\'s 3D model is empty.');
   return { listing: data, house };
+}
+
+/** A tour is over when it's marked ended/archived or its `expires` date (YYYY-MM-DD, end of that day) has passed. */
+function tourEnded(L) {
+  if (['ended', 'archived'].includes(L.status)) return true;
+  if (!L.expires) return false;
+  const end = new Date(L.expires + 'T23:59:59');
+  return !isNaN(end) && Date.now() > end.getTime();
+}
+
+/** Ended tours show a short notice (with the agent's contact on the branded link) instead of the house. */
+function showEnded() {
+  const L = listing, box = $('t-loading');
+  box.classList.add('error');
+  const who = !unbranded && L.agent?.name ? ` Contact ${L.agent.name}${L.agent.brokerage ? ' (' + L.agent.brokerage + ')' : ''} for details.` : '';
+  $('t-loading-text').textContent = `The 3D tour for ${L.address || 'this home'} is no longer available.${who}`;
+  document.title = '3D Tour Ended';
 }
 
 // ── Listing card, agent, credit ──────────────────────────────────────────────
@@ -271,6 +289,8 @@ async function start() {
   await Promise.race([photoTexturesReady, new Promise(r => setTimeout(r, 1500))]);
   try { data = await loadListing(); } catch (e) { fail(e.message || 'This tour could not be loaded.'); return; }
   listing = data.listing;
+  if (data.ended) { showEnded(); return; }
+  if (listing.status === 'preview') document.body.classList.add('preview');   // watermarked until approved & paid
   const pref = store.get();
   state = {
     ...data.house,

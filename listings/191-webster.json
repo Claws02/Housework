@@ -1,5 +1,8 @@
 {
   "id": "191-webster",
+  "publish": false,
+  "publishNote": "Public listing used as a practice model. Keep private until the listing agent gives written permission (and ideally the photographer).",
+  "status": "preview",
   "address": "191 Webster St",
   "city": "Marshfield, MA 02050",
   "price": null,

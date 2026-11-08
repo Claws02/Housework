@@ -4,7 +4,7 @@
 # One-time setup on GitHub: Settings → Pages → "Deploy from a branch" → gh-pages / (root).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-node tools/build-site.mjs
+node tools/build-site.mjs --public
 root=$(pwd)
 src=$(git rev-parse --short HEAD)
 tmp=$(mktemp -d)
