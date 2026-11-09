@@ -26,7 +26,7 @@ if (one && !listings.length) { console.error(`No listing "${one}" in listings/`)
 rmSync(out, { recursive: true, force: true });
 mkdirSync(join(out, 'listings'), { recursive: true });
 
-const TOUR = ['viewer3d.js', 'walker.js', 'character.js', 'lighting.js', 'models3d.js', 'models_kl.js', 'models_dream.js', 'models_nature.js',
+const TOUR = ['viewer3d.js', 'walker.js', 'character.js', 'lighting.js', 'models3d.js', 'models_kl.js', 'models_dream.js', 'models_nature.js', 'models_yard.js', 'landscape.js',
   'textures.js', 'furniture.js', 'tour.js', 'tour.css'];
 const DESIGNER = ['app.js', 'editor2d.js', 'sounds.js', 'house191.js', 'houseDream.js', 'style.css'];
 for (const f of [...TOUR, ...(pub ? [] : DESIGNER)]) copyFileSync(join(root, f), join(out, f));

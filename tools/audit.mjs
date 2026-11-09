@@ -228,7 +228,12 @@ house.floors.forEach(f => {
 // ── 9. Completeness: does it read as a whole, working house? ─────────────────
 {
   const roofs = house.site?.roofs || [];
-  const underRoof = (x, y) => roofs.some(rf => { const o = (rf.overhang ?? 0.75) + 0.3; return x >= rf.x - o && x <= rf.x + rf.w + o && y >= rf.y - o && y <= rf.y + rf.d + o; });
+  // small roofs built as items (a bay window's lean-to) count too
+  const roofItems = house.floors.flatMap(f => f.furniture.filter(it => CAT[it.type]?.model === 'bayRoof')).map(it => {
+    const sw = Math.abs(Math.sin(it.rotation)) > 0.5, hw = (sw ? it.depth : it.width) / 2, hd = (sw ? it.width : it.depth) / 2;
+    return { x: it.x - hw, y: it.y - hd, w: hw * 2, d: hd * 2, overhang: 0 };
+  });
+  const underRoof = (x, y) => [...roofs, ...roofItems].some(rf => { const o = (rf.overhang ?? 0.75) + 0.3; return x >= rf.x - o && x <= rf.x + rf.w + o && y >= rf.y - o && y <= rf.y + rf.d + o; });
   const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 0.35;
   const onSeg = (p, w) => segDist(p[0], p[1], [w.x1, w.y1], [w.x2, w.y2]) < (w.thick ?? 0.4) / 2 + 0.05;
   house.floors.forEach((f, fi) => {

@@ -6,6 +6,8 @@ import { buildModel } from './models3d.js';
 import './models_kl.js';           // registers the kitchen & living room set
 import './models_dream.js';        // registers the dream-house yard, systems, theater & gym set
 import './models_nature.js';       // leaf-card trees and shrubs
+import './models_yard.js';         // lazy river, climbing rock, greenhouse, footbridge, banquette, bay roof
+import { riverOutline } from './landscape.js';
 import { WALL_FINISHES, FLOOR_FINISHES, ROOF_FINISHES, finishMaterial, mat, lawnMaterial } from './textures.js';
 import { Walker } from './walker.js';
 import { Atmosphere, Pipeline, defaultQuality, isFixture } from './lighting.js';
@@ -292,21 +294,31 @@ export class Viewer3D {
       shape.holes.push(new THREE.Path([[mnX, -mnY], [mnX, -mxY], [mxX, -mxY], [mxX, -mnY]].map(([a, b]) => new THREE.Vector2(a, b))));
     // in-ground items (pools) open the lawn over their footprint
     const gf = this.state.floors[site?.groundFloor ?? -1];
-    for (const it of gf?.furniture || []) if (CATALOG_BY_TYPE[it.type]?.groundHole) {
+    const islands = [];
+    for (const it of gf?.furniture || []) if (CATALOG_BY_TYPE[it.type]?.groundHole === 'river') {
+      // a lazy river loop: its outer edge is a hole, and the lawn inside the loop is an island of its own
+      const o = riverOutline({ ...CATALOG_BY_TYPE[it.type].defaults, ...it });
+      shape.holes.push(new THREE.Path(o.outer.map(([a, b]) => new THREE.Vector2(a, -b))));
+      islands.push(new THREE.Shape(o.inner.map(([a, b]) => new THREE.Vector2(a, -b))));
+    }
+    for (const it of gf?.furniture || []) if (CATALOG_BY_TYPE[it.type]?.groundHole === true) {
       const c = Math.abs(Math.cos(it.rotation)), sn = Math.abs(Math.sin(it.rotation));
       const hw = (it.width * c + it.depth * sn) / 2, hd = (it.width * sn + it.depth * c) / 2;
       if (it.x - hw > lot.x && it.x + hw < lot.x + lot.w && it.y - hd > lot.y && it.y + hd < lot.y + lot.h)
         shape.holes.push(new THREE.Path([[it.x - hw, -(it.y - hd)], [it.x - hw, -(it.y + hd)], [it.x + hw, -(it.y + hd)], [it.x + hw, -(it.y - hd)]].map(([a, b]) => new THREE.Vector2(a, b))));
     }
-    const geo = new THREE.ShapeGeometry(shape);
+    const geo = new THREE.ShapeGeometry([shape, ...islands]);
     const fin = FLOOR_FINISHES.grass;
     this._lawn ||= lawnMaterial(fin, fin.color, 10);
     const m = this._ownMesh(geo, this._lawn);
     m.rotation.x = -Math.PI / 2; m.position.y = gy; m.castShadow = false;
     this.root.add(m);
     // wide surround so the horizon isn't an edge
-    const far = this._ownMesh(new THREE.RingGeometry(Math.min(lot.w, lot.h) * 0.42, 1400, 64, 1), mat('plain', '#6f8f4e', { roughness: 1 }));
-    far.rotation.x = -Math.PI / 2; far.position.set(lot.x + lot.w / 2, gy - 0.05, lot.y + lot.h / 2); far.castShadow = false;
+    // (a disc with the lot cut out, so it never shows through holes in the lawn such as pools and the river)
+    const farShape = new THREE.Shape().absarc(lot.x + lot.w / 2, -(lot.y + lot.h / 2), 1400, 0, Math.PI * 2, false);
+    farShape.holes.push(new THREE.Path([[lot.x, -lot.y], [lot.x, -(lot.y + lot.h)], [lot.x + lot.w, -(lot.y + lot.h)], [lot.x + lot.w, -lot.y]].map(([a, b]) => new THREE.Vector2(a, b))));
+    const far = this._ownMesh(new THREE.ShapeGeometry(farShape, 64), mat('plain', '#6f8f4e', { roughness: 1 }));
+    far.rotation.x = -Math.PI / 2; far.position.y = gy - 0.05; far.castShadow = false;
     this.root.add(far);
   }
 

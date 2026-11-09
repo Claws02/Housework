@@ -59,6 +59,7 @@ export const FURNITURE_CATALOG = [
     ['upper-cab',      'Upper Cabinet',          3,   1.1, 2.7, '#f3f1ec', 'upperCab',  '⬜', 400, { lift: 4.6 }],
     ['upper-cab-glass','Upper Cabinet (Glass)',  3,   1.1, 2.7, '#f3f1ec', 'upperCab',  '⬜', 500, { lift: 4.6, defaults: { glass: true } }],
     ['pantry',         'Pantry Cabinet',         2,   2.1, 7.5, '#f3f1ec', 'pantry',    '🥫', 900],
+    ['banquette',    'Built-in Banquette',     6,   1.9, 3.2, '#f3f1ec', 'banquette', '🛋', 1400,{ color2: '#5f7a8a' }],
     ['kitchen-island', 'Kitchen Island',         6,   3.6, 3,   '#24324a', 'island',    '⬛', 2400,{ color2: '#ece9e3' }],
     ['fridge',         'French-door Fridge',     3,   2.6, 5.9, '#c3c7cc', 'fridge',    '🧊', 2200],
     ['stove',          'Range',                  2.5, 2.2, 3,   '#c3c7cc', 'range',     '🍳', 1100],
@@ -136,6 +137,7 @@ export const FURNITURE_CATALOG = [
     ['window-sm',    'Small Window',       2.2, 0.5, 3,   '#f7f6f2', 'window',    '🪟', 0, { opening: true, lift: 4 }],
     ['window-picture','Picture Window',    5,   0.5, 4.5, '#f7f6f2', 'window',    '🪟', 0, { opening: true, lift: 2.5, defaults: { grid: false } }],
     ['window-bsmt',  'Basement Window',    2.6, 0.5, 1.3, '#f7f6f2', 'window',    '🪟', 0, { opening: true, lift: 6.2, defaults: { grid: false } }],
+    ['bay-roof',     'Bay Window Roof',    8.5, 3,   1.6, '#5d6166', 'bayRoof',   '⌂', 0, { lift: 9.4, layer: 3 }],
     ['arch',         'Cased Opening',      4,   0.5, 7,   '#f7f6f2', 'opening',   '🏛', 0, { opening: true }],
     ['garage-door',  'Garage Door',        9,   0.5, 7.5, '#f3f1ec', 'garageDoor','🚘', 0, { opening: true }],
     ['stairs',       'Stairs (up)',        3,   10,  9,   '#c9a77c', 'stairs',    '🪜', 0, { color2: '#6b4a2f' }],
@@ -176,6 +178,12 @@ export const FURNITURE_CATALOG = [
     ['fence',        'Split-rail Fence', 24,  0.4, 3.5, '#8a7a66','fence',     '┅', 0],
     ['privacy-fence','Privacy Fence (6 ft)', 24, 0.5, 6, '#b9a688','privacyFence','┃', 0],
     ['pool',         'In-ground Pool',   18,  34,  0.16,'#9fd3e0','pool',      '🏊', 0,   { floorHole: true, groundHole: true, layer: 0 }],
+    // lazy river: a closed loop of [x, z, width] points (item-local); where it widens it becomes a lagoon pool
+    ['lazy-river',   'Lazy River + Lagoon Pool', 82, 62, 0.12, '#3aa7b8', 'lazyRiver', '🌊', 0, { groundHole: 'river', layer: 0, defaults: { path: [[-24.5,21.5,12],[-16.5,21.5,23],[-8.5,21.5,26],[-0.5,21.5,24],[7.5,21.5,13],[17.5,19.5,9],[28.5,13.5,9],[36.5,1.5,9],[33.5,-11.5,9],[23.5,-19.5,9],[11.5,-21.5,9.5],[-0.5,-21.5,10],[-12.5,-21.5,9.5],[-24.5,-17.5,9],[-33.5,-6.5,9],[-36.5,7.5,9],[-33.5,17.5,9.5]] } }],
+    ['climbing-rock','Climbing Rock + Waterfall', 12, 12, 6.4, '#8c8780', 'climbingRock', '🧗', 0],
+    ['greenhouse',   'Greenhouse',       30,  26,  13,  '#f4f4f0','greenhouse','🌱', 0, { defaults: { riverGap: [-6.4, 6.4] } }],
+    ['footbridge',   'Footbridge',       4.5, 19,  6.4, '#8a6a4a','footbridge','🌉', 0],
+    ['float-tube',   'Float Tube',       3.6, 3.6, 0.6, '#f2b134','floatTube', '🛟', 30, { color2: '#f4f4f0' }],
     ['hot-tub',      'Hot Tub',          7.5, 7.5, 3,   '#6b5a4a','hotTub',    '♨', 9000,{ color2: '#4a4a4c' }],
   ]),
   ...C('Fitness', [
@@ -222,7 +230,7 @@ const BUILT_IN_TYPES = new Set([
   'ceiling-light', 'recessed-light', 'pendant', 'pendant-dome', 'lantern',
   'speaker-ceiling', 'proj-screen', 'projector', 'smart-panel', 'ceiling-beams', 'cubbies', 'pantry-shelves',
   'tree', 'tree-birch', 'tree-pine', 'shrub', 'hydrangea', 'hosta', 'shed', 'fire-pit', 'lamp-post', 'mailbox',
-  'boulder', 'fence', 'privacy-fence', 'pool', 'hot-tub',
+  'boulder', 'fence', 'privacy-fence', 'pool', 'hot-tub', 'lazy-river', 'climbing-rock', 'greenhouse', 'footbridge',
 ]);
 export function isBuiltIn(item) {
   if (item.builtIn !== undefined) return !!item.builtIn;

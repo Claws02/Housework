@@ -71,7 +71,8 @@ export function makeCharacter({ shirt = SHIRT_COLORS[0], pants = '#2b3a55', skin
     group: root,
     setShirt(c) { mShirt.color.set(c); },
     /** speed: ft/s actually moved this frame */
-    animate(dt, speed, airborne = false) {
+    /** floating: sitting in an inner tube, legs out front, arms resting on the tube */
+    animate(dt, speed, airborne = false, floating = false) {
       const s = Math.min(1, speed / 11);
       if (speed > 0.2) phase += dt * (4.5 + speed * 0.75);
       else phase *= Math.pow(0.001, dt);               // ease back to standing
@@ -84,6 +85,15 @@ export function makeCharacter({ shirt = SHIRT_COLORS[0], pants = '#2b3a55', skin
       const t = performance.now() / 1000;
       torso.scale.y = 1 + Math.sin(t * 2) * 0.012;       // idle breathing
       head.rotation.y = speed > 0.2 ? 0 : Math.sin(t * 0.6) * 0.25;
+      arms[0].rotation.z = -0.08; arms[1].rotation.z = 0.08;
+      if (floating) {
+        legs[0].rotation.x = legs[1].rotation.x = -1.3 + Math.sin(phase) * 0.15 * s;
+        arms[0].rotation.x = arms[1].rotation.x = -0.25 + Math.sin(phase) * 0.5 * s;
+        arms[0].rotation.z = -0.95; arms[1].rotation.z = 0.95;
+        body.position.y = Math.sin(t * 1.7) * 0.06;
+        body.rotation.x = -0.18;                         // lean back in the tube
+      }
+      blob.visible = !floating;
     },
   };
 }

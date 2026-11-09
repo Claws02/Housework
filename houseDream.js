@@ -9,6 +9,7 @@
 // Coordinates are wall CENTRELINES on a simple grid (rooms are drawn centreline to centreline).
 // Main block 58' × 38'. Exterior walls 6", partitions 4½", foundation 9.6".
 import { CATALOG_BY_TYPE } from './furniture.js';
+import { riverSamples, riverOutline, toPlan, pointInPoly } from './landscape.js';
 
 export const GROUND = -1.25;            // grade, relative to the 1st-floor surface
 
@@ -143,6 +144,7 @@ export function buildDreamHouse() {
   room('Mudroom', 0, 0, 8, 12, { floor: 'tile', floorColor: '#6f6a63', wall: '#e7e3da', color: '#94a3b8' });
   room('Powder Room', 0, 12, 8, 18, { floor: 'tile', floorColor: '#8d8c88', wall: '#c9d6d3', color: '#06b6d4' });
   room('Breakfast Nook', 8, 0, 18, 11, { color: '#84cc16' });
+  room('Breakfast Nook', 8.5, -2.5, 16.5, 0, { color: '#84cc16' });            // box bay with the banquette
   room('Walk-in Pantry', 8, 11, 13, 18, { color: '#64748b' });
   room("Butler's Pantry", 13, 11, 18, 18, { color: '#64748b' });
   room('Kitchen', 18, 0, 38, 18, { color: '#22c55e' });
@@ -161,19 +163,24 @@ export function buildDreamHouse() {
   room('Guest Suite', 45, 22, W, D, { wall: '#e6ebe7', color: '#ec4899' });
   room('Garage', -24, 4, 0, 30, { floor: 'concrete', wallFinish: 'framing', wall: '#c99a66', offset: -1, ceiling: false, color: '#78716c' });
   const OUT = { outdoor: true, ceiling: false };
-  room('Patio Deck', 0, -20, 42, 0, { ...OUT, floor: 'deck', floorColor: '#a68b6c', offset: -0.75, color: '#a16207' });
-  room('Front Porch', 14, D, 44, 45.25, { ...OUT, floor: 'deck', floorColor: '#9c8f7e', offset: -0.6, color: '#a16207' });
+  const DECK = { ...OUT, floor: 'deck', floorColor: '#a68b6c', offset: -0.75, color: '#a16207' };
+  room('Patio Deck', 0, -20, 42, -2.75, DECK);                                  // wraps around the nook bay
+  room('Patio Deck', 0, -2.75, 8.25, 0, DECK);
+  room('Patio Deck', 16.75, -2.75, 42, 0, DECK);
+  room('Front Porch', 0, D, W, 45.25, { ...OUT, floor: 'deck', floorColor: '#9c8f7e', offset: -0.6, color: '#a16207' });   // full width, garage to the east end
   room('Driveway', -24, 30, 0, 100, { ...OUT, floor: 'asphalt', offset: -1.0, color: '#525252' });
   room('Front Walk', 18.5, 47.6, 22.5, 100, { ...OUT, floor: 'stone', offset: -1.2, color: '#a8a29e' });
-  room('Pool Deck', 6, -70, 64, -40, { ...OUT, floor: 'stone', floorColor: '#b3ab9e', offset: -1.2, color: '#a8a29e' });
+  room('Pool Patio', 6, -44.5, 64, -33, { ...OUT, floor: 'stone', floorColor: '#b3ab9e', offset: -1.2, color: '#a8a29e' });
+  room('Garden Path', 23, -33, 27, -22.4, { ...OUT, floor: 'stone', floorColor: '#b3ab9e', offset: -1.2, color: '#a8a29e' });
   room('Fire Pit Patio', -22, -48, -4, -30, { ...OUT, floor: 'gravel', offset: -1.22, color: '#a8a29e' });
   room('Street', -60, 100, 130, 122, { ...OUT, floor: 'asphalt', floorColor: '#3c3c3e', offset: -1.24, color: '#3f3f46' });
   room('Beach', -600, -175, 700, -158, { ...OUT, floor: 'sand', offset: -1.22, color: '#e7d7a8' });
   room('Bay', -600, -800, 700, -175, { ...OUT, floor: 'water', offset: -1.24, color: '#0ea5e9' });
 
   const E1 = { ext: true, h: 10, t: EXT };
-  chain([[0, 0], [W, 0], [W, D], [0, D], [0, 0]], E1);
+  chain([[16.5, 0], [W, 0], [W, D], [0, D], [0, 0], [8.5, 0]], E1);           // open across the nook bay (x 8.5–16.5)
   chain([[42, 0], [42, -14], [W, -14], [W, 0]], E1);                          // sunroom (its roof is the primary deck)
+  chain([[8.5, 0], [8.5, -2.5], [16.5, -2.5], [16.5, 0]], { ext: true, h: 10.15, base: -0.75, t: EXT });   // nook bay
   chain([[0, 4], [-24, 4], [-24, 30], [0, 30]], { ext: true, h: 9.75, base: -1, t: EXT });   // garage
   wall(0, 12, 8, 12); wall(8, 0, 8, 18); wall(8, 11, 18, 11); wall(13, 11, 13, 18);
   wall(0, 18, W, 18); wall(18, 0, 18, 18); wall(38, 0, 38, 18);
@@ -191,7 +198,9 @@ export function buildDreamHouse() {
   for (const y of [27, 34]) win(W, y, 90, {});
   win(0, 34.5, 90, { lift: 2.4, height: 5.2 });                               // dining (west, past the garage)
   door(3, 0, 0, { type: 'door-ext', label: 'Back Door (yard)' });
-  item('sliding-door', 13, 0, { rot: 0, w: 6, label: 'Nook Slider' });
+  win(12.5, -2.5, 0, { type: 'window-picture', w: 6.4, lift: 3.1, height: 4.9, grid: true, label: 'Bay window' });
+  for (const x of [8.5, 16.5]) win(x, -1.25, 90, { w: 1.5, lift: 3.1, height: 4.9, label: 'Bay side window' });
+  item('bay-roof', 12.5, -1.675, { rot: 180, w: 8.6, d: 2.85, label: 'Bay Roof' });
   win(28.1, 0, 0, { type: 'window-picture', w: 4.2, lift: 3.6, height: 3.6, grid: true, label: 'Window over sink' });
   win(40, 0, 0, { w: 2.6 });
   item('french-door', 50, 0, { rot: 0, w: 5, label: 'Den → Sunroom' });
@@ -278,10 +287,13 @@ export function buildDreamHouse() {
   item('knife-block', 25.6, e + 0.6, { lift: 3 });
   item('paper-towel', 30.9, e + 0.4, { lift: 3 });
   // Breakfast nook
-  item('dining-4', 12.6, 6, { w: 3.8, d: 3.8, color: '#8a6a4a', label: 'Nook Table' });
-  for (const [x, y, r] of [[12.6, 4.15, 0], [12.6, 7.85, 180], [10.75, 6, -90], [14.45, 6, 90]]) item('dining-chair', x, y, { rot: r, color: '#f3f1ec', color2: '#9fb3c3' });
-  item('pendant-dome', 12.6, 6, { lift: 6.2 });
-  item('plant-lg', 16.9, 1.2, { w: 1.6, d: 1.6 });
+  // Breakfast nook: L-shaped built-in banquette in the bay and along the mudroom wall, table, two chairs
+  item('banquette', 12.5, -1.4, { w: 7.5, d: 1.7, label: 'Banquette (bay)' });
+  item('banquette', 9.05, 2.65, { rot: 90, w: 4.8, d: 1.7, label: 'Banquette (wall)' });
+  item('dining-4', 12.5, 1.05, { w: 4.4, d: 3, color: '#8a6a4a', label: 'Nook Table' });
+  item('dining-chair', 15.7, 1.05, { rot: 90, color: '#f3f1ec', color2: '#9fb3c3' });
+  item('dining-chair', 12.5, 3.7, { rot: 180, color: '#f3f1ec', color2: '#9fb3c3' });
+  item('pendant-dome', 12.5, 1.05, { lift: 6.2 });
   // Den: fireplace + TV on the east wall, built-ins, sectional facing it, 7.1 surround, beams
   item('fireplace', W - e - 0.8, 9, { rot: 90, w: 5.5, height: 9 });
   item('chimney', W + e + 1.25, 9, { rot: -90, lift: GROUND, height: 36.5 });
@@ -366,14 +378,44 @@ export function buildDreamHouse() {
   item('planter', 1.2, -18.8, {}); item('planter', 40.8, -18.8, { color: '#5b7fc9' });
   item('steps', 25, -21.2, { rot: 180, w: 6, d: 2.4, height: 0.5, lift: GROUND, label: 'Deck Steps' });
   item('steps', 20.5, 46.4, { rot: 0, w: 5, d: 2.4, height: 0.65, lift: GROUND, label: 'Porch Steps' });
-  for (const x of [14.5, 22.5, 35.5, 43.5]) item('post', x, 44.8, { height: 9.8 });
-  item('lantern', 20.5, 41.5, { lift: 6.4, ceil: 9.4 }); item('lantern', 35.5, 41.5, { lift: 6.4, ceil: 9.4 });
+  for (const x of [0.5, 8.5, 16.5, 24.5, 32.75, 41, 49.25, 57.5]) item('post', x, 44.8, { height: 9.8 });
+  for (const x of [6, 20.5, 35.5, 50]) item('lantern', x, 41.5, { lift: 6.4, ceil: 9.4 });
+  for (const [x, r] of [[4.2, 15], [7.4, -15], [52.2, 15], [55.4, -15]]) item('patio-chair', x, 41.2, { rot: r, label: 'Porch Rocker', color: '#f3f1ec', color2: '#5f7a8a' });
+  item('side-table', 5.8, 39.2, {}); item('side-table', 53.8, 39.2, {});
   item('patio-chair', 39.5, 41.2, { rot: 15, label: 'Porch Rocker', color: '#f3f1ec', color2: '#5f7a8a' });
   item('patio-chair', 42.2, 41.4, { rot: -15, label: 'Porch Rocker', color: '#f3f1ec', color2: '#5f7a8a' });
-  item('pool', 30, -55, { rot: 90, color: '#9fd3e0' });
-  for (const x of [17, 22, 27, 32]) item('lounge-chair', x, -42.2, { rot: 180, color2: '#f3f1ec' });
-  item('patio-table', 40, -42.6, { w: 3, d: 3, umbrella: 'open', color2: '#2f5a8a' });
-  item('hot-tub', 56, -52, { rot: 0 });
+  // Lazy river: one loop out of the lagoon pool, east and south round the yard, through the greenhouse and back.
+  // Float tubes ride the current (about 1 mph); a cedar footbridge on the west leg is high enough to float under.
+  const river = item('lazy-river', 38.5, -81.5, {});
+  item('climbing-rock', 37, -70, { label: 'Climbing Rock + Waterfall' });
+  item('greenhouse', 38, -103, {});
+  item('footbridge', 2.25, -77, { rot: 90 });
+  const tubes = [[23, -57, '#f2b134'], [29, -63, '#e4572e'], [75, -80, '#2e86de'], [44, -103, '#27ae60']];
+  for (const [x, y, c] of tubes) item('float-tube', x, y, { lift: GROUND - 0.45, color: c, rot: x * 7 });
+  for (const x of [17, 22, 27, 32]) item('lounge-chair', x, -40, { rot: 180, color2: '#f3f1ec' });
+  item('patio-table', 46, -39.5, { w: 3, d: 3, umbrella: 'open', color2: '#2f5a8a' });
+  item('hot-tub', 58, -39.6, { rot: 0 });
+  // banks: boulders, grasses and flowering shrubs, kept clear of the patio, bridge, rock and greenhouse
+  {
+    const full = { ...CATALOG_BY_TYPE['lazy-river'].defaults, ...river }, S = riverSamples(full), ol = riverOutline(full);
+    const keepOut = [[4, 66, -47, -31], [21, 55, -118, -88], [-9, 13.5, -82, -70], [29, 45, -78, -62], [-24, -2, -50, -28], [77, 93, -118, -98]];
+    const free = (x, y) => x > -38 && x < 98 && y > -123 && !keepOut.some(([a, b, c, d]) => x > a && x < b && y > c && y < d);
+    const kinds = [['boulder', { w: 2.6, d: 2.1, height: 1.3 }], ['hosta', {}], ['shrub', { w: 2.4, d: 2.4, height: 2.2, label: 'Ornamental Grass', color: '#7e9a52' }],
+      ['hydrangea', { color2: '#5b7fc9' }], ['boulder', { w: 3.2, d: 2.4, height: 1.6 }]];
+    for (const [side, every, off] of [[ol.outerSide, 12, 3.2], [ol.outerSide === 'L' ? 'R' : 'L', 15, 3.0]]) {
+      let next = 4, n = 0;
+      for (const p of S) {
+        if (p.s < next) continue;
+        const sg = side === 'L' ? 1 : -1, e = p[side];
+        const [x, y] = toPlan(full, e[0] + p.nx * sg * off, e[1] + p.nz * sg * off);
+        if (!free(x, y) || pointInPoly(ol.outer, x, y) && !pointInPoly(ol.inner, x, y)) continue;
+        next = p.s + every;
+        const [t, o] = kinds[n++ % kinds.length];
+        item(t, x, y, { ...o, rot: (n * 47) % 360 });
+      }
+    }
+  }
+  item('tree-birch', 22, -85, { rot: 40 }); item('tree-birch', 57, -84, { rot: 200 });
   item('fire-pit', -13, -39, {});
   for (const [x, y, r] of [[-13, -33.8, 180], [-13, -44.2, 0], [-18.2, -39, -90], [-7.8, -39, 90]]) item('lounge-chair', x, y, { rot: r, color: '#f3f1ec', color2: '#c9a050', label: 'Adirondack Chair' });
   item('shed', 85, -108, { rot: 0, w: 12, d: 16, height: 11, label: 'Workshop Shed', color: '#a39a8c' });
@@ -384,9 +426,9 @@ export function buildDreamHouse() {
   item('heat-pump', -26.4, 7, { rot: -90 }); item('heat-pump', -26.4, 10.8, { rot: -90 });
   item('generator', -27, 16, { rot: -90 });
   // Landscaping
-  for (const x of [2, 6, 10, 47, 51, 55]) item('hydrangea', x, D + 1.6, { color2: '#5b7fc9' });
-  for (const x of [4, 8, 12, 49, 53, 57]) item('hosta', x, D + 3, {});
-  for (const x of [14, 27, 34, 42]) item('shrub', x, D + 8.4, { w: 2.6, d: 2.6, height: 2.4 });
+  // in front of the porch (it now runs the full width of the house)
+  for (const x of [2, 7, 12, 29, 34, 39, 44, 49, 54]) item('hydrangea', x, D + 11.2, { color2: '#5b7fc9' });
+  for (const x of [4.5, 9.5, 14.5, 26.5, 31.5, 36.5, 41.5, 46.5, 51.5, 56.5]) item('hosta', x, D + 8.4, {});
   item('mailbox', -27, 98, {});
   item('lamp-post', 17, 60, {});
   const trees = [
@@ -545,7 +587,7 @@ export function buildDreamHouse() {
   // Porch: low double-pitch roof along the front.
   roof({ name: 'Main roof', x: -e, y: -e, w: W + EXT, d: D + EXT, axis: 'x', eave: 18, ridge: 18 + (D / 2 + e + 0.75) * 0.75, solar: true });
   roof({ name: 'Garage roof', x: -24 - e, y: 4 - e, w: 24 - e, d: 26 + EXT, axis: 'y', eave: 8.75, ridge: 17, clipWalls: false });
-  roof({ name: 'Porch roof', x: 13.5, y: D + 0.75, w: 31, d: 6.5, axis: 'x', eave: 9.25, ridge: 12.25, clipWalls: false });
+  roof({ name: 'Porch roof', x: -0.5, y: D + 0.75, w: W + 1, d: 6.5, axis: 'x', eave: 9.25, ridge: 12.25, clipWalls: false });
 
   return { floors, activeFloor: 1, site };
 }

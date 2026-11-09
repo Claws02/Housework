@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { CATALOG_BY_TYPE } from './furniture.js';
 import { wallOpenings, roomAt, floorHoleRect } from './viewer3d.js';
 import { makeCharacter, SHIRT_COLORS } from './character.js';
+import { RIVER, riverOutline, inRiver, riverFlow, rockTiers, greenhouseWalls, greenhouseBeds, bridgeDeckAt, BRIDGE, toPlan } from './landscape.js';
 
 const RADIUS = 0.58;         // 14" body width turned sideways — fits through any gap a real person could
 const BODY_H = 5.4;          // collision height
@@ -16,7 +17,9 @@ const MAX_DROP = 2.6;        // won't walk off ledges taller than this
 export const PERSON_H = 5.83;
 const WALK = 4.4, JOG = 9;           // 3 mph stroll · 6 mph jog (push the stick to its edge / hold Shift)
 const NO_COLLIDE = new Set(['rug', 'stairs', 'stairsDown', 'stairOpening', 'steps', 'joists', 'ceilingLight', 'pendant',
-  'lantern', 'curtains', 'wallArt', 'mirror', 'hosta', 'door', 'slider', 'window', 'opening', 'garageDoor', 'tableLamp', 'tv', 'elecPanel']);
+  'lantern', 'curtains', 'wallArt', 'mirror', 'hosta', 'door', 'slider', 'window', 'opening', 'garageDoor', 'tableLamp', 'tv', 'elecPanel',
+  'lazyRiver', 'floatTube']);
+const FLOAT_STEP_UP = 3.3;   // from the water you can climb out onto the coping
 const PREF_KEY = 'house-walk';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -32,6 +35,11 @@ export class Walker {
     this.char = makeCharacter({ shirt: SHIRT_COLORS[this.shirtIdx % SHIRT_COLORS.length] });
     this.setPersonHeight(this.v.view.personH ?? PERSON_H);
     this.v.scene.add(this.char.group);
+    // inner tube you sit in whenever you're floating in the lazy river (child of the character, so it follows)
+    this.tube = new THREE.Mesh(new THREE.TorusGeometry(1.05, 0.42, 12, 32), new THREE.MeshStandardMaterial({ color: '#f2b134', roughness: 0.35 }));
+    this.tube.rotation.x = Math.PI / 2; this.tube.position.y = 2.55; this.tube.visible = false;
+    this.char.group.add(this.tube);
+    this.floating = false;
 
     this.pos = new THREE.Vector3();   // feet (world): x, y, z
     this.vy = 0;
@@ -61,7 +69,7 @@ export class Walker {
   // ── World (colliders + walkable surfaces) ────────────────────────────────
   rebuildWorld() {
     const st = this.v.state, site = st.site || {};
-    const segs = [], boxes = [], circles = [], slabs = [], ramps = [];
+    const segs = [], boxes = [], circles = [], slabs = [], ramps = [], waters = [];
     st.floors.forEach((f, fi) => {
       // walls → solid segments with a vertical range, minus door/window openings
       for (const w of this.v._allWalls(f)) {
@@ -98,6 +106,53 @@ export class Walker {
           ramps.push({ x: it.x, z: it.y, rot: it.rotation, hw: it.width / 2, hd: it.depth / 2, y, h: m === 'stairsDown' ? -h : h, down: m === 'stairsDown' });
           continue;
         }
+        if (m === 'lazyRiver') {
+          const full = { ...cat.defaults, ...it }, o = riverOutline(full);
+          const xs = o.outer.map(p => p[0]), zs = o.outer.map(p => p[1]);
+          waters.push({ it: full, o, x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs),
+            surface: y + RIVER.water, floor: y + RIVER.water - RIVER.wade });
+          continue;
+        }
+        const aabb = (lx0, lx1, lz0, lz1) => {
+          const P = [[lx0, lz0], [lx1, lz0], [lx1, lz1], [lx0, lz1]].map(([a, b]) => toPlan(it, a, b));
+          return { x0: Math.min(...P.map(p => p[0])), x1: Math.max(...P.map(p => p[0])), z0: Math.min(...P.map(p => p[1])), z1: Math.max(...P.map(p => p[1])) };
+        };
+        const obox = (lx0, lx1, lz0, lz1, y0, y1) => {
+          const [cx, cz] = toPlan(it, (lx0 + lx1) / 2, (lz0 + lz1) / 2), c = Math.cos(it.rotation), s = Math.sin(it.rotation);
+          boxes.push({ x: cx, z: cz, c, s, hw: (lx1 - lx0) / 2, hd: (lz1 - lz0) / 2, y0, y1 });
+        };
+        if (m === 'climbingRock') {         // ledges you can climb, each a step up from the last
+          for (const t of rockTiers({ ...it, height: h })) {
+            slabs.push({ ...aabb(t.x0, t.x1, t.z0, t.z1), top: y + t.top, holes: [], fi, room: null });
+            obox(t.x0, t.x1, t.z0, t.z1, y - 3.6, y + t.top);
+          }
+          obox(0.22 * it.width, 0.44 * it.width, 0.10 * it.depth, 0.36 * it.depth, y - 3.6, y + 0.72 * h);   // waterfall shoulder
+          continue;
+        }
+        if (m === 'greenhouse') {           // glass walls with a door and the river openings; raised beds inside
+          const full = { ...cat.defaults, ...it };
+          for (const [ax, az, bx, bz] of greenhouseWalls(full)) {
+            const [px, pz] = toPlan(it, ax, az), [qx, qz] = toPlan(it, bx, bz);
+            segs.push({ ax: px, az: pz, bx: qx, bz: qz, half: 0.28, y0: y, y1: y + h });
+          }
+          for (const b of greenhouseBeds(full)) obox(b.x0, b.x1, b.z0, b.z1, y + 0.25, y + 2);
+          continue;
+        }
+        if (m === 'footbridge') {           // ramps up to a flat middle you can float under; rails both sides
+          const hw = it.width / 2, hd = it.depth / 2, flat = hd - BRIDGE.ramp, rise = BRIDGE.deck - BRIDGE.end;
+          slabs.push({ ...aabb(-hw, hw, -flat, flat), top: y + BRIDGE.deck, holes: [], fi, room: null });
+          for (const sg of [1, -1]) {
+            const [rx, rz] = toPlan(it, 0, sg * (flat + BRIDGE.ramp / 2));
+            ramps.push({ x: rx, z: rz, rot: it.rotation + (sg > 0 ? 0 : Math.PI), hw, hd: BRIDGE.ramp / 2, y: y + BRIDGE.end, h: rise, down: false });
+          }
+          for (const sx of [-1, 1]) for (let i = 0; i < 8; i++) {
+            const z0 = -hd + i * it.depth / 8, z1 = z0 + it.depth / 8;
+            const [ax, az] = toPlan(it, sx * (hw - 0.15), z0), [bx, bz] = toPlan(it, sx * (hw - 0.15), z1);
+            const lo = Math.min(bridgeDeckAt(it.depth, z0), bridgeDeckAt(it.depth, z1));
+            segs.push({ ax, az, bx, bz, half: 0.15, y0: y + lo + 0.3, y1: y + lo + BRIDGE.rail + 0.6 });
+          }
+          continue;
+        }
         if (m === 'tree' || m === 'pine') { circles.push({ x: it.x, z: it.y, r: Math.max(0.5, it.width * 0.055), y0: y, y1: y + h }); continue; }
         if (NO_COLLIDE.has(m) || cat.opening || cat.mount === 'ceiling' || h < 1.1 || it.width * it.depth < 2.2) continue;
         const c = Math.cos(it.rotation), s = Math.sin(it.rotation);
@@ -129,7 +184,7 @@ export class Walker {
     const gy = site.ground ?? 0;
     for (const f of st.floors) if (f.elev < gy) for (const r of f.rooms) { bx0 = Math.min(bx0, r.x); bx1 = Math.max(bx1, r.x + r.width); bz0 = Math.min(bz0, r.y); bz1 = Math.max(bz1, r.y + r.height); }
     this.ground = { y: gy, lot, hole: isFinite(bx0) ? { x0: bx0, x1: bx1, z0: bz0, z1: bz1 } : null };
-    Object.assign(this, { segs, boxes, circles, slabs, ramps });
+    Object.assign(this, { segs, boxes, circles, slabs, ramps, waters });
     this.occluders = this.v._pickables.filter(o => ['wall', 'roof', 'room'].includes(o.userData.pick?.kind) && o.isMesh);
   }
 
@@ -151,8 +206,17 @@ export class Walker {
       take(r.y + r.h * t);
     }
     const g = this.ground, L = g.lot;
-    if (x >= L.x && x <= L.x + L.w && z >= L.y && z <= L.y + L.h && !(g.hole && x > g.hole.x0 && x < g.hole.x1 && z > g.hole.z0 && z < g.hole.z1)) take(g.y);
+    if (x >= L.x && x <= L.x + L.w && z >= L.y && z <= L.y + L.h && !(g.hole && x > g.hole.x0 && x < g.hole.x1 && z > g.hole.z0 && z < g.hole.z1)) {
+      const w = this._waterAt(x, z);
+      take(w ? w.floor : g.y);
+    }
     return best;
+  }
+
+  /** The lazy river (if any) whose water covers plan (x, z). */
+  _waterAt(x, z) {
+    for (const w of this.waters || []) if (x > w.x0 && x < w.x1 && z > w.z0 && z < w.z1 && inRiver(w.it, x, z, w.o)) return w;
+    return null;
   }
 
   /** Push a circle at (x, z) out of everything that overlaps the body's height band [y0, y1]. */
@@ -191,6 +255,8 @@ export class Walker {
       }
     }
   }
+
+  _bodyTop() { return this.floating ? 3.0 : BODY_H; }
 
   _blocked(x, z, y) {
     const p = { x, z }; this._resolve(p, y + 0.9, y + BODY_H);
@@ -349,7 +415,13 @@ export class Walker {
     if (mag < 0.12) mag = 0;
     // analog: a gentle push strolls, most of the throw is a normal walk, the outer rim jogs
     const running = k.has('shift') || (this.joy.id !== null && mag > 0.96);
-    const speed = mag ? (running ? JOG : WALK * clamp((mag - 0.12) / 0.7, 0.3, 1)) : 0;
+    // in the river: you sit in a tube, paddle slowly and the current carries you
+    const water = this._waterAt(this.pos.x, this.pos.z);
+    this.inWater = !!water && this.pos.y < water.surface;
+    this.floating = this.inWater && this.pos.y <= water.floor + 0.35;
+    this._stepUp = this.inWater ? FLOAT_STEP_UP : STEP_UP;
+    let speed = mag ? (running ? JOG : WALK * clamp((mag - 0.12) / 0.7, 0.3, 1)) : 0;
+    if (this.inWater) speed *= running ? 0.3 : 0.55;
     this._speedNow = speed;
 
     // camera-relative direction: forward = (sin yaw, cos yaw); right = (−cos yaw, sin yaw)
@@ -362,8 +434,17 @@ export class Walker {
       this.facing = lerpAngle(this.facing, Math.atan2(dx, dz), Math.min(1, dt * 12));
       moved = this._move(dx * speed * dt, dz * speed * dt);
     }
+    if (this.floating) {                 // drift downstream, staying on the water
+      const f = riverFlow(water.it, this.pos.x, this.pos.z);
+      const nx = this.pos.x + f.dx * dt, nz = this.pos.z + f.dy * dt;
+      if (this._waterAt(nx, nz)) {
+        const p = { x: nx, z: nz }; this._resolve(p, this.pos.y + 0.9, this.pos.y + this._bodyTop());
+        if (this._waterAt(p.x, p.z)) { this.pos.x = p.x; this.pos.z = p.z; }
+      }
+      if (!mag) this.facing = lerpAngle(this.facing, Math.atan2(f.dx, f.dy), Math.min(1, dt * 0.8));
+    }
     // gravity / settle onto the floor
-    const ground = this.surfaceAt(this.pos.x, this.pos.z, this.pos.y + STEP_UP);
+    const ground = this.surfaceAt(this.pos.x, this.pos.z, this.pos.y + this._stepUp);
     if (ground > -Infinity) {
       if (this.pos.y - ground < 1.3 && this.vy <= 0) { this.pos.y += (ground - this.pos.y) * Math.min(1, dt * 18); this.vy = 0; }
       else { this.vy -= 32 * dt; this.pos.y = Math.max(ground, this.pos.y + this.vy * dt); if (this.pos.y === ground) this.vy = 0; }
@@ -375,7 +456,8 @@ export class Walker {
     if (moved > 0.001 || Math.abs(g.rotation.y - this.facing) > 0.01) this.v.atmo.shadowDirty = this.thirdPerson || this.v.atmo.shadowDirty;
     g.position.copy(this.pos);
     g.rotation.y = this.facing;
-    this.char.animate(dt, dt > 0 ? moved / dt : 0, air);
+    this.tube.visible = this.floating;
+    this.char.animate(dt, dt > 0 ? moved / dt : 0, air && !this.inWater, this.floating);
 
     this._updateVisibility();
     this._updateCamera(dt);
@@ -386,9 +468,10 @@ export class Walker {
     let moved = 0;
     for (let i = 0; i < steps; i++) {
       const p = { x: this.pos.x + dx / steps, z: this.pos.z + dz / steps };
-      this._resolve(p, this.pos.y + 0.9, this.pos.y + BODY_H);
-      const y = this.surfaceAt(p.x, p.z, this.pos.y + STEP_UP);
-      if (y === -Infinity || this.pos.y - y > MAX_DROP) break;   // nothing to stand on / ledge
+      this._resolve(p, this.pos.y + 0.9, this.pos.y + this._bodyTop());
+      const y = this.surfaceAt(p.x, p.z, this.pos.y + (this._stepUp ?? STEP_UP));
+      // nothing to stand on, or a ledge (except into water: jump off the rock or the bank)
+      if (y === -Infinity || (this.pos.y - y > MAX_DROP && !this._waterAt(p.x, p.z))) break;
       moved += Math.hypot(p.x - this.pos.x, p.z - this.pos.z);
       this.pos.x = p.x; this.pos.z = p.z;
       if (y > this.pos.y) this.pos.y = y;      // walk up steps & stairs immediately

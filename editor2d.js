@@ -1,4 +1,5 @@
 import { FURNITURE_CATALOG, CATALOG_BY_TYPE } from './furniture.js';
+import { riverSamples, inRiver } from './landscape.js';
 
 const kindOf = id => !id ? null : id[0] === 'r' ? 'room' : id[0] === 'w' ? 'wall' : id[0] === 'g' ? 'roof' : 'item';
 const layerOf = it => CATALOG_BY_TYPE[it.type]?.layer ?? 1;
@@ -558,6 +559,7 @@ export class Editor2D {
       let hw = it.width/2, hd = it.depth/2;
       if (cat?.model === 'tree' || cat?.model === 'pine') { hw *= 0.35; hd *= 0.35; }
       if (Math.abs(lx)>hw || Math.abs(ly)>hd) continue;
+      if (cat?.model === 'lazyRiver' && !inRiver({ ...cat.defaults, ...it }, wx, wy)) continue;
       // ceiling-wide items (joists) only grab on their outline so they don't block the room below
       if (cat?.mount === 'ceiling' && it.width > 6 && Math.abs(lx) < hw-0.6 && Math.abs(ly) < hd-0.6) continue;
       return it;
@@ -819,6 +821,14 @@ export class Editor2D {
   /** Plan-view symbols for architectural items; returns true if it drew something. */
   _drawSymbol(ctx, it, cat, pw, ph, sel) {
     const m = cat?.model;
+    if (m === 'lazyRiver') {           // the water ring itself, not its bounding box
+      const S = riverSamples({ ...cat.defaults, ...it }), z = this.zoom;
+      ctx.beginPath();
+      for (const side of ['L', 'R']) { S.forEach((p, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, p[side][0] * z, p[side][1] * z)); ctx.closePath(); }
+      ctx.fillStyle = it.color || '#3aa7b8'; ctx.globalAlpha = 0.85; ctx.fill('evenodd'); ctx.globalAlpha = 1;
+      ctx.strokeStyle = sel ? '#ffd400' : '#d9d2c4'; ctx.lineWidth = sel ? 2 : 1.5; ctx.stroke();
+      return true;
+    }
     if (m === 'door' || m === 'slider' || m === 'garageDoor' || m === 'opening') {
       ctx.fillStyle = '#111827'; ctx.fillRect(-pw/2, -ph/2, pw, ph);       // gap in the wall
       ctx.strokeStyle = sel ? '#ffd400' : '#e6c98f'; ctx.lineWidth = sel ? 2 : 1.2;
