@@ -4,7 +4,7 @@
 // Local frame = an item's footprint frame (origin at its centre, x along its width, z along its depth, +z = front).
 // Plan = the floor plan (x, y). toPlan / toLocal convert, matching floorHoleRect in viewer3d.js.
 
-export const RIVER = { water: -0.45, coping: 1.3, copingH: 0.12, wade: 2.6 };   // water 5½" below grade; you wade ~2'7" deep
+export const RIVER = { water: -0.45, coping: 1.3, copingH: 0.12, wade: 2.5 };   // water 5½" below grade; the river is 3 ft deep
 
 export const toPlan = (it, lx, lz) => {
   const c = Math.cos(it.rotation || 0), s = Math.sin(it.rotation || 0);
@@ -49,7 +49,7 @@ export function riverSamples(it) {
     const wobL = 0.18 * Math.sin(s * 0.5) + f * (0.9 * Math.sin(s * 0.19 + 1) + 0.45 * Math.sin(s * 0.57));
     const wobR = 0.18 * Math.sin(s * 0.43 + 2) + f * (0.8 * Math.sin(s * 0.23 + 4) + 0.4 * Math.sin(s * 0.61 + 3));
     const nx = -tz / tl, nz = tx / tl, hl = p.w / 2 + wobL, hr = p.w / 2 + wobR;
-    return { x: p.x, z: p.z, w: p.w, s, f, nx, nz, depth: 3.4 + f * 2.6,
+    return { x: p.x, z: p.z, w: p.w, s, f, nx, nz, depth: 3.0 + f * 4.5,     // river 3 ft; lagoon deep end ~6 ft under the rock
       L: [p.x + nx * hl, p.z + nz * hl], R: [p.x - nx * hr, p.z - nz * hr] };
   });
   _riverCache.set(it, { key, S });
@@ -104,25 +104,37 @@ export function rockTiers(it) {
 }
 
 // ── Greenhouse ──────────────────────────────────────────────────────────────
-// Glass walls on all four sides: a double door in the middle of the front (+z) wall and an arched opening in each
-// end wall where the river flows through (it.riverGap = [z0, z1], local).
+// Glass walls on all four sides: a door in the front (+z) wall at it.door (local x), an optional back door at
+// it.backDoor, and an opening in each end wall where the river flows through (it.riverGap = [z0, z1], local).
 export function greenhouseWalls(it) {
-  const hw = it.width / 2, hd = it.depth / 2, door = 2.5, [g0, g1] = it.riverGap ?? [-6.4, 6.4];
+  const hw = it.width / 2, hd = it.depth / 2, dw = 2.5, [g0, g1] = it.riverGap ?? [-4, 4];
+  const fd = it.door ?? 0, bd = it.backDoor;
   return [
-    [-hw, hd, -door, hd], [door, hd, hw, hd],               // front, door gap
-    [-hw, -hd, hw, -hd],                                    // back
-    [-hw, -hd, -hw, g0], [-hw, g1, -hw, hd],                // ends, river gap
+    [-hw, hd, fd - dw, hd], [fd + dw, hd, hw, hd],                                      // front, door gap
+    ...(bd === undefined ? [[-hw, -hd, hw, -hd]] : [[-hw, -hd, bd - dw, -hd], [bd + dw, -hd, hw, -hd]]),
+    [-hw, -hd, -hw, g0], [-hw, g1, -hw, hd],                                            // ends, river gap
     [hw, -hd, hw, g0], [hw, g1, hw, hd],
   ];
 }
-/** Raised beds inside (local rects, 2 ft tall). */
-export function greenhouseBeds(it) {
-  const hw = it.width / 2, hd = it.depth / 2, [g0, g1] = it.riverGap ?? [-6.4, 6.4];
-  const back = { z0: -hd + 0.4, z1: -hd + 2.9 }, front = { z0: hd - 2.9, z1: hd - 0.4 };
-  return [
-    { x0: -hw + 0.6, x1: -hw * 0.18, ...back }, { x0: hw * 0.18, x1: hw - 0.6, ...back },
-    { x0: -hw + 0.6, x1: -4.5, ...front }, { x0: 4.5, x1: hw - 0.6, ...front },
-  ].filter(b => b.z0 > g1 || b.z1 < g0);
+/** Planting inside (local rects): low stone-edged jungle beds along both long walls, a raised vegetable & herb bed,
+ *  and pots (citrus, a palm). Beds stop short of the doors. kind: 'jungle' | 'veg'; h = height that blocks walking. */
+export function greenhouseLayout(it) {
+  const hw = it.width / 2, hd = it.depth / 2, fd = it.door ?? 0, bd = it.backDoor, D = 2.6, m = 0.45;
+  const beds = [], pots = [];
+  const strip = (z0, z1, door, vegFrom) => {
+    const runs = door === undefined ? [[-hw + m, hw - m]] : [[-hw + m, door - 2.9], [door + 2.9, hw - m]];
+    for (const [x0, x1] of runs) if (x1 - x0 > 1.5) {
+      if (vegFrom !== undefined && x1 > vegFrom && x0 < vegFrom) {
+        beds.push({ x0, x1: vegFrom, z0, z1, kind: 'jungle', h: 2.5 });
+        beds.push({ x0: vegFrom + 0.3, x1, z0, z1, kind: 'veg', h: 2 });
+      } else beds.push({ x0, x1, z0, z1, kind: vegFrom !== undefined && x0 >= vegFrom ? 'veg' : 'jungle', h: 2.5 });
+    }
+  };
+  strip(hd - m - D, hd - m, fd, fd + 2.9);                 // front wall: jungle west of the door, vegetables east
+  strip(-hd + m, -hd + m + D, bd);                          // back wall: jungle
+  pots.push({ x: -hw + 1.6, z: -hd + m + D + 1.3, kind: 'palm' }, { x: hw - 1.6, z: -hd + m + D + 1.3, kind: 'citrus' },
+    { x: -hw + 1.6, z: hd - m - D - 1.3, kind: 'citrus' });
+  return { beds, pots };
 }
 
 // ── Footbridge ──────────────────────────────────────────────────────────────

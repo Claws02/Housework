@@ -82,7 +82,7 @@ function vrange(f, it) {
   const y0 = c.opening ? lift : (lift < -0.5 ? lift : surf(f, it) + lift);
   return [y0, y0 + h];
 }
-const IGNORE = new Set(['rug', 'joists', 'recessed', 'ceilingLight', 'stairOpening', 'tree', 'pine']);
+const IGNORE = new Set(['rug', 'joists', 'recessed', 'ceilingLight', 'stairOpening', 'tree', 'pine', 'greenhouse']);   // a greenhouse holds things
 const SEATS = new Set(['diningChair', 'barStool', 'officeChair', 'patioChair']);
 const TABLES = new Set(['diningTable', 'island', 'builtinDesk', 'desk', 'antiqueDesk', 'lDesk', 'patioTable', 'fireTable', 'baseCab', 'sideboard']);
 const PLANTS = new Set(['shrub', 'hosta', 'boulder', 'planter', 'plant', 'tree', 'pine']);

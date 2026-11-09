@@ -179,10 +179,11 @@ export const FURNITURE_CATALOG = [
     ['privacy-fence','Privacy Fence (6 ft)', 24, 0.5, 6, '#b9a688','privacyFence','┃', 0],
     ['pool',         'In-ground Pool',   18,  34,  0.16,'#9fd3e0','pool',      '🏊', 0,   { floorHole: true, groundHole: true, layer: 0 }],
     // lazy river: a closed loop of [x, z, width] points (item-local); where it widens it becomes a lagoon pool
-    ['lazy-river',   'Lazy River + Lagoon Pool', 82, 62, 0.12, '#3aa7b8', 'lazyRiver', '🌊', 0, { groundHole: 'river', layer: 0, defaults: { path: [[-24.5,21.5,12],[-16.5,21.5,23],[-8.5,21.5,26],[-0.5,21.5,24],[7.5,21.5,13],[17.5,19.5,9],[28.5,13.5,9],[36.5,1.5,9],[33.5,-11.5,9],[23.5,-19.5,9],[11.5,-21.5,9.5],[-0.5,-21.5,10],[-12.5,-21.5,9.5],[-24.5,-17.5,9],[-33.5,-6.5,9],[-36.5,7.5,9],[-33.5,17.5,9.5]] } }],
-    ['climbing-rock','Climbing Rock + Waterfall', 12, 12, 6.4, '#8c8780', 'climbingRock', '🧗', 0],
-    ['greenhouse',   'Greenhouse',       30,  26,  13,  '#f4f4f0','greenhouse','🌱', 0, { defaults: { riverGap: [-6.4, 6.4] } }],
-    ['footbridge',   'Footbridge',       4.5, 19,  6.4, '#8a6a4a','footbridge','🌉', 0],
+    ['lazy-river',   'Lazy River + Lagoon Pool', 72, 40, 0.12, '#3aa7b8', 'lazyRiver', '🌊', 0, { groundHole: 'river', layer: 0, defaults: { path: [[7.5,10.6,10],[13.5,11.1,16],[19.5,11.1,17],[25.5,10.1,14],[30.5,6.6,7],[33.5,0.6,4.5],[31.5,-6.4,4.5],[24.5,-10.4,4.5],[17.5,-15.4,4.5],[9.5,-13.4,4.5],[1.5,-17.4,4.5],[-6.5,-13.4,4.5],[-14.5,-17.4,4.5],[-23.5,-14.4,4.5],[-30.5,-9.4,4.5],[-33.5,-1.4,4.5],[-32.5,5.6,4.5],[-28.5,7,4.5],[-24.5,6.6,4.5],[-18.5,5.1,4.5],[-12.5,7.8,4.5],[-6.5,5.4,4.5],[-0.5,6.6,4.5],[3.5,8.4,6.5]] } }],
+    ['climbing-rock','Climbing Rock + Waterfall', 9, 9, 5.6, '#8c8780', 'climbingRock', '🧗', 0],
+    ['greenhouse',   'Greenhouse',       24,  22,  12,  '#f4f4f0','greenhouse','🌱', 0, { defaults: { riverGap: [-4, 4], backDoor: 6 } }],
+    ['footbridge',   'Footbridge',       4,   13,  6.4, '#8a6a4a','footbridge','🌉', 0],
+    ['fern',         'Fern',             2,   2,   1.6, '#3d8a3a','fern',      '🌿', 25],
     ['float-tube',   'Float Tube',       3.6, 3.6, 0.6, '#f2b134','floatTube', '🛟', 30, { color2: '#f4f4f0' }],
     ['hot-tub',      'Hot Tub',          7.5, 7.5, 3,   '#6b5a4a','hotTub',    '♨', 9000,{ color2: '#4a4a4c' }],
   ]),
@@ -230,7 +231,7 @@ const BUILT_IN_TYPES = new Set([
   'ceiling-light', 'recessed-light', 'pendant', 'pendant-dome', 'lantern',
   'speaker-ceiling', 'proj-screen', 'projector', 'smart-panel', 'ceiling-beams', 'cubbies', 'pantry-shelves',
   'tree', 'tree-birch', 'tree-pine', 'shrub', 'hydrangea', 'hosta', 'shed', 'fire-pit', 'lamp-post', 'mailbox',
-  'boulder', 'fence', 'privacy-fence', 'pool', 'hot-tub', 'lazy-river', 'climbing-rock', 'greenhouse', 'footbridge',
+  'boulder', 'fence', 'privacy-fence', 'pool', 'hot-tub', 'fern', 'lazy-river', 'climbing-rock', 'greenhouse', 'footbridge',
 ]);
 export function isBuiltIn(item) {
   if (item.builtIn !== undefined) return !!item.builtIn;

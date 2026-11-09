@@ -172,6 +172,7 @@ export function buildDreamHouse() {
   room('Front Walk', 18.5, 47.6, 22.5, 100, { ...OUT, floor: 'stone', offset: -1.2, color: '#a8a29e' });
   room('Pool Patio', 6, -44.5, 64, -33, { ...OUT, floor: 'stone', floorColor: '#b3ab9e', offset: -1.2, color: '#a8a29e' });
   room('Garden Path', 23, -33, 27, -22.4, { ...OUT, floor: 'stone', floorColor: '#b3ab9e', offset: -1.2, color: '#a8a29e' });
+  room('Garden Path', 18, -48.2, 22, -44.5, { ...OUT, floor: 'stone', floorColor: '#b3ab9e', offset: -1.2, color: '#a8a29e' });   // patio → greenhouse door
   room('Fire Pit Patio', -22, -48, -4, -30, { ...OUT, floor: 'gravel', offset: -1.22, color: '#a8a29e' });
   room('Street', -60, 100, 130, 122, { ...OUT, floor: 'asphalt', floorColor: '#3c3c3e', offset: -1.24, color: '#3f3f46' });
   room('Beach', -600, -175, 700, -158, { ...OUT, floor: 'sand', offset: -1.22, color: '#e7d7a8' });
@@ -384,28 +385,30 @@ export function buildDreamHouse() {
   item('side-table', 5.8, 39.2, {}); item('side-table', 53.8, 39.2, {});
   item('patio-chair', 39.5, 41.2, { rot: 15, label: 'Porch Rocker', color: '#f3f1ec', color2: '#5f7a8a' });
   item('patio-chair', 42.2, 41.4, { rot: -15, label: 'Porch Rocker', color: '#f3f1ec', color2: '#5f7a8a' });
-  // Lazy river: one loop out of the lagoon pool, east and south round the yard, through the greenhouse and back.
-  // Float tubes ride the current (about 1 mph); a cedar footbridge on the west leg is high enough to float under.
-  const river = item('lazy-river', 38.5, -81.5, {});
-  item('climbing-rock', 37, -70, { label: 'Climbing Rock + Waterfall' });
-  item('greenhouse', 38, -103, {});
-  item('footbridge', 2.25, -77, { rot: 90 });
-  const tubes = [[23, -57, '#f2b134'], [29, -63, '#e4572e'], [75, -80, '#2e86de'], [44, -103, '#27ae60']];
-  for (const [x, y, c] of tubes) item('float-tube', x, y, { lift: GROUND - 0.45, color: c, rot: x * 7 });
-  for (const x of [17, 22, 27, 32]) item('lounge-chair', x, -40, { rot: 180, color2: '#f3f1ec' });
-  item('patio-table', 46, -39.5, { w: 3, d: 3, umbrella: 'open', color2: '#2f5a8a' });
-  item('hot-tub', 58, -39.6, { rot: 0 });
-  // banks: boulders, grasses and flowering shrubs, kept clear of the patio, bridge, rock and greenhouse
+  // Lazy river: a 4½ ft wide, 3 ft deep loop (~170 ft) out of a compact lagoon pool. It winds round the greenhouse
+  // and flows through it once; the greenhouse sits just past the pool patio, a short walk from the deck.
+  // Float tubes ride the current (about 1 mph). Through the greenhouse's back door is the lawn inside the loop and the rock.
+  const river = item('lazy-river', 32.5, -66.6, {});
+  item('greenhouse', 20, -60, { d: 23 });
+  item('footbridge', 14, -61.3, { label: 'Footbridge (greenhouse)' });
+  item('climbing-rock', 50, -65.5, { label: 'Climbing Rock + Waterfall' });
+  for (const [x, y, c] of [[44, -54, '#f2b134'], [55, -56.5, '#e4572e'], [40, -80.5, '#2e86de'], [23, -60, '#27ae60']])
+    item('float-tube', x, y, { lift: GROUND - 0.45, color: c, rot: x * 7 });
+  for (const x of [37.5, 41.5, 45.5, 49.5]) item('lounge-chair', x, -41, { rot: 180, color2: '#f3f1ec' });
+  item('patio-table', 13, -38.8, { w: 3, d: 3, umbrella: 'open', color2: '#2f5a8a' });
+  for (const [dx, dy, r] of [[0, -2.2, 0], [0, 2.2, 180], [-2.2, 0, -90], [2.2, 0, 90]]) item('patio-chair', 13 + dx, -38.8 + dy, { rot: r, color2: '#9aa0a8' });
+  item('hot-tub', 60, -39.6, { rot: 0 });
+  // banks: boulders, grasses and flowering shrubs, kept clear of the patio, greenhouse, rock and paths
   {
     const full = { ...CATALOG_BY_TYPE['lazy-river'].defaults, ...river }, S = riverSamples(full), ol = riverOutline(full);
-    const keepOut = [[4, 66, -47, -31], [21, 55, -118, -88], [-9, 13.5, -82, -70], [29, 45, -78, -62], [-24, -2, -50, -28], [77, 93, -118, -98]];
+    const keepOut = [[4, 66, -47.5, -31], [6, 34, -74, -46], [44, 56.5, -72, -59], [-24, -2, -50, -28], [77, 93, -118, -98]];
     const free = (x, y) => x > -38 && x < 98 && y > -123 && !keepOut.some(([a, b, c, d]) => x > a && x < b && y > c && y < d);
-    const kinds = [['boulder', { w: 2.6, d: 2.1, height: 1.3 }], ['hosta', {}], ['shrub', { w: 2.4, d: 2.4, height: 2.2, label: 'Ornamental Grass', color: '#7e9a52' }],
-      ['hydrangea', { color2: '#5b7fc9' }], ['boulder', { w: 3.2, d: 2.4, height: 1.6 }]];
-    for (const [side, every, off] of [[ol.outerSide, 12, 3.2], [ol.outerSide === 'L' ? 'R' : 'L', 15, 3.0]]) {
-      let next = 4, n = 0;
+    const kinds = [['boulder', { w: 2.4, d: 1.9, height: 1.2 }], ['hosta', {}], ['shrub', { w: 2.2, d: 2.2, height: 2.2, label: 'Ornamental Grass', color: '#7e9a52' }],
+      ['hydrangea', { color2: '#5b7fc9' }], ['hosta', {}]];
+    for (const [side, every, off] of [[ol.outerSide, 9, 2.9], [ol.outerSide === 'L' ? 'R' : 'L', 11, 2.7]]) {
+      let next = 3, n = side === ol.outerSide ? 0 : 2;
       for (const p of S) {
-        if (p.s < next) continue;
+        if (p.s < next || p.f > 0.3) continue;              // river banks only; the lagoon edge stays open
         const sg = side === 'L' ? 1 : -1, e = p[side];
         const [x, y] = toPlan(full, e[0] + p.nx * sg * off, e[1] + p.nz * sg * off);
         if (!free(x, y) || pointInPoly(ol.outer, x, y) && !pointInPoly(ol.inner, x, y)) continue;
@@ -415,7 +418,19 @@ export function buildDreamHouse() {
       }
     }
   }
-  item('tree-birch', 22, -85, { rot: 40 }); item('tree-birch', 57, -84, { rot: 200 });
+  // inside the greenhouse: ferns and flowers right along both banks (clear of the bridge)
+  {
+    const full = { ...CATALOG_BY_TYPE['lazy-river'].defaults, ...river }, S = riverSamples(full), placed = [];
+    let n = 0;
+    for (const p of S) for (const sg of [1, -1]) {
+      const e = sg > 0 ? p.L : p.R, [x, y] = toPlan(full, e[0] + p.nx * sg * 2.15, e[1] + p.nz * sg * 2.15);
+      if (y < -69.5 || y > -50.5 || x < 9.5 || x > 30.5 || (x > 10.8 && x < 17.2)) continue;
+      if (placed.some(([a, b]) => Math.hypot(a - x, b - y) < 2.5)) continue;
+      placed.push([x, y]);
+      item('fern', x, y, { w: 1.8, d: 1.8, rot: n * 61, ...(n++ % 3 === 0 ? { color2: '#e2557a' } : {}) });
+    }
+  }
+  item('tree-birch', 12, -96, { rot: 40 }); item('tree-birch', 50, -94, { rot: 200 });
   item('fire-pit', -13, -39, {});
   for (const [x, y, r] of [[-13, -33.8, 180], [-13, -44.2, 0], [-18.2, -39, -90], [-7.8, -39, 90]]) item('lounge-chair', x, y, { rot: r, color: '#f3f1ec', color2: '#c9a050', label: 'Adirondack Chair' });
   item('shed', 85, -108, { rot: 0, w: 12, d: 16, height: 11, label: 'Workshop Shed', color: '#a39a8c' });

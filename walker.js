@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { CATALOG_BY_TYPE } from './furniture.js';
 import { wallOpenings, roomAt, floorHoleRect } from './viewer3d.js';
 import { makeCharacter, SHIRT_COLORS } from './character.js';
-import { RIVER, riverOutline, inRiver, riverFlow, rockTiers, greenhouseWalls, greenhouseBeds, bridgeDeckAt, BRIDGE, toPlan } from './landscape.js';
+import { RIVER, riverOutline, inRiver, riverFlow, rockTiers, greenhouseWalls, greenhouseLayout, bridgeDeckAt, BRIDGE, toPlan } from './landscape.js';
 
 const RADIUS = 0.58;         // 14" body width turned sideways — fits through any gap a real person could
 const BODY_H = 5.4;          // collision height
@@ -18,7 +18,7 @@ export const PERSON_H = 5.83;
 const WALK = 4.4, JOG = 9;           // 3 mph stroll · 6 mph jog (push the stick to its edge / hold Shift)
 const NO_COLLIDE = new Set(['rug', 'stairs', 'stairsDown', 'stairOpening', 'steps', 'joists', 'ceilingLight', 'pendant',
   'lantern', 'curtains', 'wallArt', 'mirror', 'hosta', 'door', 'slider', 'window', 'opening', 'garageDoor', 'tableLamp', 'tv', 'elecPanel',
-  'lazyRiver', 'floatTube']);
+  'lazyRiver', 'floatTube', 'fern']);
 const FLOAT_STEP_UP = 3.3;   // from the water you can climb out onto the coping
 const PREF_KEY = 'house-walk';
 
@@ -135,7 +135,9 @@ export class Walker {
             const [px, pz] = toPlan(it, ax, az), [qx, qz] = toPlan(it, bx, bz);
             segs.push({ ax: px, az: pz, bx: qx, bz: qz, half: 0.28, y0: y, y1: y + h });
           }
-          for (const b of greenhouseBeds(full)) obox(b.x0, b.x1, b.z0, b.z1, y + 0.25, y + 2);
+          const lay = greenhouseLayout(full);
+          for (const b of lay.beds) obox(b.x0, b.x1, b.z0, b.z1, y + 0.25, y + b.h);
+          for (const p of lay.pots) obox(p.x - 0.85, p.x + 0.85, p.z - 0.85, p.z + 0.85, y + 0.25, y + 5);
           continue;
         }
         if (m === 'footbridge') {           // ramps up to a flat middle you can float under; rails both sides
